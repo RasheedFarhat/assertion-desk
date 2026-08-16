@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting some users, starting we noticed it over the past week or so. The one change on our side around that time: an admin cleaned up some group-to-role mappings in our directory. What we've already checked: spot-checked a couple of affected accounts in our directory, looked normal there. Please let us know what artifact or evidence you need from us to pin this down."
+}

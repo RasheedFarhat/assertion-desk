@@ -1,0 +1,17 @@
+{
+  "case_id": "wrong_audience",
+  "fault_id": "wrong_audience",
+  "category": "context_mismatch",
+  "difficulty": "normal",
+  "register": "precise",
+  "expected_root_cause": "SAML-AUD-01",
+  "expected_disposition": "review_required",
+  "target_check_ids": [
+    "SAML-AUD-01"
+  ],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": "shared_baseline_har",
+  "injection": null
+}

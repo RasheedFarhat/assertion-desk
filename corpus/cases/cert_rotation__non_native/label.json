@@ -1,0 +1,19 @@
+{
+  "case_id": "cert_rotation__non_native",
+  "fault_id": "cert_rotation",
+  "category": "live_capture",
+  "difficulty": "normal",
+  "register": "non_native",
+  "expected_root_cause": "SAML-CERT-02",
+  "expected_disposition": "review_required",
+  "target_check_ids": [
+    "SAML-CERT-02",
+    "SAML-SIG-01",
+    "SAML-SIG-02"
+  ],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": null,
+  "injection": null
+}

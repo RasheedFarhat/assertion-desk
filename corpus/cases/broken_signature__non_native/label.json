@@ -1,0 +1,17 @@
+{
+  "case_id": "broken_signature__non_native",
+  "fault_id": "broken_signature",
+  "category": "artifact_mutation",
+  "difficulty": "normal",
+  "register": "non_native",
+  "expected_root_cause": "SAML-SIG-01",
+  "expected_disposition": "review_required",
+  "target_check_ids": [
+    "SAML-SIG-01"
+  ],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": "shared_baseline_har",
+  "injection": null
+}

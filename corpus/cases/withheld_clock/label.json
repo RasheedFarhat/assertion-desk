@@ -1,0 +1,17 @@
+{
+  "case_id": "withheld_clock",
+  "fault_id": "withheld_clock",
+  "category": "context_mismatch",
+  "difficulty": "ambiguous",
+  "register": "precise",
+  "expected_root_cause": null,
+  "expected_disposition": "awaiting_evidence",
+  "target_check_ids": [
+    "SAML-SKEW-01"
+  ],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": "shared_baseline_har",
+  "injection": null
+}

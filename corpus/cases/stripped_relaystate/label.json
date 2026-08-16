@@ -1,0 +1,15 @@
+{
+  "case_id": "stripped_relaystate",
+  "fault_id": "stripped_relaystate",
+  "category": "artifact_mutation",
+  "difficulty": "normal",
+  "register": "precise",
+  "expected_root_cause": null,
+  "expected_disposition": "review_required",
+  "target_check_ids": [],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": "RelayState lives in the HAR/transport layer (the ACS POST body), not inside the parsed SAMLResponse XML desk/verify/checks/ operates on. No check in the current catalogue reads RelayState's presence, value, or destination.",
+  "no_saml_response_reason": null,
+  "har_ref": "case_local",
+  "injection": null
+}

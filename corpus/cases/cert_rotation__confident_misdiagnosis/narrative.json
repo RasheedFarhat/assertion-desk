@@ -1,0 +1,4 @@
+{
+  "subject": "SSO is down on your end",
+  "body": "Login is failing for every user, since this morning. We've looked into it and we're pretty confident our network firewall is blocking the login page. Can you confirm and get this fixed on your side?"
+}

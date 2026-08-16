@@ -1,0 +1,18 @@
+{
+  "case_id": "inresponseto_mismatch",
+  "fault_id": "inresponseto_mismatch",
+  "category": "context_mismatch",
+  "difficulty": "normal",
+  "register": "precise",
+  "expected_root_cause": "SAML-INRESP-01",
+  "expected_disposition": "review_required",
+  "target_check_ids": [
+    "SAML-INRESP-01",
+    "SAML-INRESP-02"
+  ],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": "shared_baseline_har",
+  "injection": null
+}

@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting only our newest users, starting for anyone we've added since last week. The one change on our side around that time: stood up a second identity environment for testing. What we've already checked: confirmed existing users still log in fine. Please let us know what artifact or evidence you need from us to pin this down."
+}

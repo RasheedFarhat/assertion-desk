@@ -1,0 +1,17 @@
+{
+  "case_id": "duplicate_role_attributes",
+  "fault_id": "duplicate_role_attributes",
+  "category": "baseline",
+  "difficulty": "conflicting",
+  "register": "precise",
+  "expected_root_cause": "SAML-ATTR-01",
+  "expected_disposition": "review_required",
+  "target_check_ids": [
+    "SAML-ATTR-01"
+  ],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": "shared_baseline_har",
+  "injection": null
+}

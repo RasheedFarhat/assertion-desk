@@ -2,10 +2,6 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-harness/capture/captured/
-harness/capture/idp-metadata.xml
-harness/capture/idp-cert.txt
-harness/capture/fault_cert_rotation/
 node_modules/
 .DS_Store
 *.sqlite3

@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting every user, starting ever since we finished setup last week. The one change on our side around that time: we just finished configuring SSO for the first time. What we've already checked: double-checked the login URL. Please let us know what artifact or evidence you need from us to pin this down."
+}

@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting every user, starting since this morning. The one change on our side around that time: migrated to a new SSO app registration this week. What we've already checked: compared the old and new config side by side but couldn't spot it. Please let us know what artifact or evidence you need from us to pin this down."
+}

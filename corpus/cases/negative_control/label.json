@@ -1,0 +1,15 @@
+{
+  "case_id": "negative_control",
+  "fault_id": "negative_control",
+  "category": "live_capture",
+  "difficulty": "normal",
+  "register": "precise",
+  "expected_root_cause": null,
+  "expected_disposition": "review_required",
+  "target_check_ids": [],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": "No SAMLResponse artifact exists in this case (the IdP rejected the credential before producing one), so no check in desk/verify/checks/ has anything to run against. Correct behavior is a case state of out_of_scope / no_saml_response, never a fabricated check result.",
+  "no_saml_response_reason": "No SAMLResponse artifact exists in this case (the IdP rejected the credential before producing one), so no check in desk/verify/checks/ has anything to run against. Correct behavior is a case state of out_of_scope / no_saml_response, never a fabricated check result.",
+  "har_ref": "case_local",
+  "injection": null
+}

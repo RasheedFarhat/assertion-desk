@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting every user, starting since we updated our SSO config yesterday. The one change on our side around that time: updated the app's URL in our identity provider console yesterday. What we've already checked: re-typed the URL twice to be sure. Please let us know what artifact or evidence you need from us to pin this down."
+}

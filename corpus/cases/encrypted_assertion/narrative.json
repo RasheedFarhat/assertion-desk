@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting every user, starting since our security review changes went live. The one change on our side around that time: our security team required assertion encryption to be turned on. What we've already checked: confirmed the encryption setting looks correct on our side. Please let us know what artifact or evidence you need from us to pin this down."
+}

@@ -1,0 +1,10 @@
+{
+  "sp_entity_id": "http://127.0.0.1:9091/saml/metadata",
+  "acs_url": "http://127.0.0.1:9091/saml/acs",
+  "idp_entity_id": "http://127.0.0.1:8080/realms/assertion-desk",
+  "trusted_cert_pem": null,
+  "in_response_to_expected": null,
+  "sp_clock": "2026-08-16T06:55:00+00:00",
+  "clock_skew_tolerance_seconds": 180,
+  "evaluation_time": "2026-08-16T06:55:00+00:00"
+}

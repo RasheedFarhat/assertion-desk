@@ -1,0 +1,17 @@
+{
+  "case_id": "clock_skew__hostile",
+  "fault_id": "clock_skew",
+  "category": "context_mismatch",
+  "difficulty": "normal",
+  "register": "hostile",
+  "expected_root_cause": "SAML-SKEW-01",
+  "expected_disposition": "review_required",
+  "target_check_ids": [
+    "SAML-SKEW-01"
+  ],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": "shared_baseline_har",
+  "injection": null
+}

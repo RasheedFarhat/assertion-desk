@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting one user, starting just for one user, since yesterday. What we've already checked: had the user restart their laptop. Please let us know what artifact or evidence you need from us to pin this down."
+}

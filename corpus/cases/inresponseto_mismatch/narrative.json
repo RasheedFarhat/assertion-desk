@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting some users, starting randomly, a handful of times this week. The one change on our side around that time: rolled out a new internal proxy in front of our identity provider. What we've already checked: confirmed it's not the same users every time. Please let us know what artifact or evidence you need from us to pin this down."
+}

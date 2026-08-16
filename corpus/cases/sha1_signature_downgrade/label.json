@@ -1,0 +1,7 @@
+{
+  "case_id": "sha1_signature_downgrade",
+  "fault_id": "sha1_signature_downgrade",
+  "category": "documented_gap",
+  "gap_reason": "No SAML-SIG-ALGORITHM-01 check exists in the catalogue. Building an executable case for this fault without first adding that check would either be undetectable by design (proving nothing) or would require re-signing the real captured assertion with a genuine SHA-1 signature, which needs Keycloak's realm signing algorithm reconfigured (LIVE_CAPTURE) rather than a context override or a simple byte mutation -- deferred as future generator capacity, not attempted here.",
+  "note": "DOCUMENTED_GAP: no executable case, no artifacts. See harness/faults/base.py."
+}

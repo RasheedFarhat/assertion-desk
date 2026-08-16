@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting some users, starting for some of our users, not all. The one change on our side around that time: we recently moved everything behind our new load balancer. What we've already checked: confirmed the affected users are on our new network segment. Please let us know what artifact or evidence you need from us to pin this down."
+}

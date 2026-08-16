@@ -1,0 +1,20 @@
+{
+  "case_id": "withheld_cert",
+  "fault_id": "withheld_cert",
+  "category": "context_mismatch",
+  "difficulty": "ambiguous",
+  "register": "precise",
+  "expected_root_cause": null,
+  "expected_disposition": "awaiting_evidence",
+  "target_check_ids": [
+    "SAML-SIG-01",
+    "SAML-SIG-02",
+    "SAML-CERT-01",
+    "SAML-CERT-02"
+  ],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": "shared_baseline_har",
+  "injection": null
+}

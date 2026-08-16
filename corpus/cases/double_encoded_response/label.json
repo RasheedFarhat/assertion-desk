@@ -1,0 +1,15 @@
+{
+  "case_id": "double_encoded_response",
+  "fault_id": "double_encoded_response",
+  "category": "artifact_mutation",
+  "difficulty": "malformed",
+  "register": "precise",
+  "expected_root_cause": null,
+  "expected_disposition": "escalate",
+  "target_check_ids": [],
+  "expects_parse_failure": true,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": "shared_baseline_har",
+  "injection": null
+}

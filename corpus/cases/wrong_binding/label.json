@@ -1,0 +1,15 @@
+{
+  "case_id": "wrong_binding",
+  "fault_id": "wrong_binding",
+  "category": "artifact_mutation",
+  "difficulty": "normal",
+  "register": "precise",
+  "expected_root_cause": null,
+  "expected_disposition": "review_required",
+  "target_check_ids": [],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": "HTTP method and SAML binding type live in the HAR's request line, not in the parsed SAMLResponse XML. No check in desk/verify/checks/ reads either, so a binding mismatch produces a fully-verified check grid with the real-world symptom (login rejected or mishandled at the SP) unexplained by any check.",
+  "no_saml_response_reason": null,
+  "har_ref": "case_local",
+  "injection": null
+}

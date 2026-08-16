@@ -1,0 +1,4 @@
+{
+  "subject": "SSO is down on your end",
+  "body": "Login is failing for only our newest users, for anyone we've added since last week. We've looked into it and we're pretty confident your system must be caching an old list of allowed users. Can you confirm and get this fixed on your side?"
+}

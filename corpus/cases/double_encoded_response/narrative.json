@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting every user, starting since we upgraded our reverse proxy last night. The one change on our side around that time: upgraded our reverse proxy software last night. What we've already checked: rolled the proxy upgrade back on one node, still broken there too. Please let us know what artifact or evidence you need from us to pin this down."
+}

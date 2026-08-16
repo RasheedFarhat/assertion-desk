@@ -1,0 +1,10 @@
+{
+  "errors": [
+    "invalid_response"
+  ],
+  "last_error_reason": "Signature validation failed. SAML Response rejected",
+  "is_authenticated": false,
+  "nameid": null,
+  "attributes": {},
+  "session_index": null
+}

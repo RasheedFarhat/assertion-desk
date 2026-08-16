@@ -1,0 +1,19 @@
+{
+  "case_id": "missing_nameid__hostile",
+  "fault_id": "missing_nameid",
+  "category": "artifact_mutation",
+  "difficulty": "normal",
+  "register": "hostile",
+  "expected_root_cause": "SAML-NAMEID-01",
+  "expected_disposition": "review_required",
+  "target_check_ids": [
+    "SAML-NAMEID-01",
+    "SAML-SIG-01",
+    "SAML-SIG-02"
+  ],
+  "expects_parse_failure": false,
+  "no_check_coverage_reason": null,
+  "no_saml_response_reason": null,
+  "har_ref": "shared_baseline_har",
+  "injection": null
+}

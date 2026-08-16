@@ -1,0 +1,4 @@
+{
+  "subject": "SSO is down on your end",
+  "body": "Login is failing for some users, for a handful of users since a directory sync last night. We've looked into it and we're pretty confident those specific user accounts must be broken on your side. Can you confirm and get this fixed on your side?"
+}
