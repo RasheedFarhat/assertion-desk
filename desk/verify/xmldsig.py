@@ -19,6 +19,8 @@ from lxml import etree as LET
 from signxml import XMLVerifier
 from signxml.exceptions import InvalidSignature
 
+from desk.verify.pem import wrap_pem
+
 NS = {
     "samlp": "urn:oasis:names:tc:SAML:2.0:protocol",
     "saml": "urn:oasis:names:tc:SAML:2.0:assertion",
@@ -94,17 +96,10 @@ def verify_saml_response(raw_bytes: bytes, trusted_cert_pem: str | None = None) 
     return report
 
 
-def _pem_wrap(cert_body: str) -> str:
-    cert_body = cert_body.strip()
-    if "BEGIN CERTIFICATE" in cert_body:
-        return cert_body
-    return "-----BEGIN CERTIFICATE-----\n" + cert_body + "\n-----END CERTIFICATE-----\n"
-
-
 def _verify_element(element, kind: str, element_id: str | None, trusted_cert_pem: str | None) -> SignatureCheckResult:
     verify_kwargs = {"expect_references": 1}
     if trusted_cert_pem is not None:
-        verify_kwargs["x509_cert"] = _pem_wrap(trusted_cert_pem)
+        verify_kwargs["x509_cert"] = wrap_pem(trusted_cert_pem)
     try:
         XMLVerifier().verify(element, **verify_kwargs)
         # VerifyResult (signxml 5.x) exposes signed_data/signed_xml/signature_xml/
@@ -112,7 +107,7 @@ def _verify_element(element, kind: str, element_id: str | None, trusted_cert_pem
         # already hold it, so report its subject directly rather than re-deriving it.
         subject = None
         if trusted_cert_pem is not None:
-            cert = x509.load_pem_x509_certificate(_pem_wrap(trusted_cert_pem).encode())
+            cert = x509.load_pem_x509_certificate(wrap_pem(trusted_cert_pem).encode())
             subject = cert.subject.rfc4514_string()
         reason = "signature valid, digest matches"
         reason += ", verified against pinned trusted cert" if trusted_cert_pem else ", trusted embedded cert (no pin supplied)"
