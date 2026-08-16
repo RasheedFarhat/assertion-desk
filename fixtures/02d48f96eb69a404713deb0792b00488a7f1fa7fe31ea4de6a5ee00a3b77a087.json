@@ -1,0 +1,13 @@
+{
+  "input_tokens": 382,
+  "key": "02d48f96eb69a404713deb0792b00488a7f1fa7fe31ea4de6a5ee00a3b77a087",
+  "latency_ms": 29782.745499862358,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 196,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-SIG-01: no trusted_cert_pem supplied; refusing to trust an embedded certificate blindly (would be resolved by: idp_metadata)\n- SAML-SIG-02: no trusted_cert_pem supplied; refusing to trust an embedded certificate blindly (would be resolved by: idp_metadata)\n- SAML-CERT-01: no trusted_cert_pem supplied (would be resolved by: idp_metadata)\n- SAML-CERT-02: no trusted_cert_pem supplied (would be resolved by: idp_metadata)\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='unknown', onset='null', already_tried=['re-checked our entity ID and ACS URL twice'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "34be9a01b4572097ae8cfb3273cca439d2eb49af277862d56909c5fa5b7310e6",
+  "provider": "ollama",
+  "recorded_at": 1786895600.310741,
+  "schema_version": "v1",
+  "text": "{\"subject\": \"Verification Gap Details\", \"body\": \"I need the exact evidence that the support system could not verify. Please provide the following artifacts: SAML-SIG-01, SAML-SIG-02, SAML-CERT-01, SAML-CERT-02, SAML-INRESP-01, SAML-INRESP-02. The system is unable to verify these specific artifacts, and the evidence should be precise and specific. The artifacts are not yet verified, and the evidence should be drawn from the closed set referenced in the gaps. Please provide the evidence directly, without any additional interpretation or explanation.\",\"requested_artifacts\": [\"saml_response\", \"saml_response\", \"saml_response\", \"saml_response\", \"saml_response\", \"saml_response\"]}"
+}

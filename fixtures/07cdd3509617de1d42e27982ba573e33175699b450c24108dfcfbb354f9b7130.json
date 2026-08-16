@@ -1,0 +1,13 @@
+{
+  "input_tokens": 265,
+  "key": "07cdd3509617de1d42e27982ba573e33175699b450c24108dfcfbb354f9b7130",
+  "latency_ms": 16161.647042026743,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 137,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='single_user', onset='null', already_tried=['login failed', 'corrupted account'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "ec8c04eeede1d33a8b6f48076f16afecfab7ddc286484ed7d3fd5593dfa4420c",
+  "provider": "ollama",
+  "recorded_at": 1786894050.342932,
+  "schema_version": "v1",
+  "text": "{\n\n  \"subject\": \"Verification Gap Analysis\",\n  \"body\": \"Please verify the following artifacts to resolve the verification gaps identified in the system: sp_request_log, sp_request_log, sp_request_log. The system is currently unable to verify the following: SAML-INRESP-01 and SAML-INRESP-02. The scope is single_user, onset is null, and the user has already tried login failed and corrupted account. Please ensure that the logs are properly captured and analyzed to resolve these gaps.\",\n  \"requested_artifacts\": [\n    \"sp_request_log\",\n    \"sp_request_log\",\n    \"sp_request_log\"\n  ]\n}"
+}

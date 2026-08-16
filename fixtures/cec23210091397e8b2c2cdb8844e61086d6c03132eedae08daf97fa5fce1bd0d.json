@@ -1,0 +1,13 @@
+{
+  "input_tokens": 272,
+  "key": "cec23210091397e8b2c2cdb8844e61086d6c03132eedae08daf97fa5fce1bd0d",
+  "latency_ms": 22542.57854190655,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 162,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='unknown', onset='null', already_tried=[\"compared the old and new config side by side but couldn't spot it\"].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "fb64aa3adda78d3dad000d3d7bd3601b9d9eef830e85dc4f87ef31345e0b03bb",
+  "provider": "ollama",
+  "recorded_at": 1786894448.085508,
+  "schema_version": "v1",
+  "text": "{\n\n  \"subject\": \"Verification Gap Analysis\",\n  \"body\": \"Please verify the following artifacts to resolve the verification gaps identified in the system:\\n\\n1. SAML-INRESP-01: Check if the SP (Identity Provider) initiated flows have no InResponseTo value, and confirm that SP initiated flows have an InResponseTo value.\\n\\n2. SAML-INRESP-02: Check if the SP (Identity Provider) initiated flows have no InResponseTo value, and confirm that SP initiated flows have an InResponseTo value.\\n\\nPlease ensure that the verification is done using the artifacts mentioned in the gaps, and provide the results in a clear and concise manner.\",\n  \"requested_artifacts\": [\n    \"sp_request_log\"\n  ]\n}"
+}

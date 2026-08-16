@@ -1,0 +1,13 @@
+{
+  "input_tokens": 271,
+  "key": "5027c75c05a4721d49a588f74c173597d173f60fe684f65e4441423232191186",
+  "latency_ms": 5753.94087517634,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 44,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='single_user', onset='since yesterday', already_tried=['what artifact or evidence you need from us to pin this down'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "1d03ba77c921ac54e39ded961dc7c4128485a6e5f92551a2036814c83ed42ca0",
+  "provider": "ollama",
+  "recorded_at": 1786894018.7884328,
+  "schema_version": "v1",
+  "text": "{\"subject\": \"verification_gap\", \"body\": \"I need the following artifact to determine the exact evidence the support system could not verify: sp_request_log.\",\"requested_artifacts\": [\"sp_request_log\"]}"
+}

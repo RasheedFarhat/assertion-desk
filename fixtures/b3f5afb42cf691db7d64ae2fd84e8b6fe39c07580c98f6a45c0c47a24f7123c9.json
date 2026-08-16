@@ -1,0 +1,13 @@
+{
+  "input_tokens": 312,
+  "key": "b3f5afb42cf691db7d64ae2fd84e8b6fe39c07580c98f6a45c0c47a24f7123c9",
+  "latency_ms": 28015.819667140022,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 116,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='all_users', onset=None, already_tried=[\"This is the THIRD time I'm writing about this. SSO login has been broken for every user starting today and nobody has given us a straight answer. Our team cannot work. We need this fixed TODAY or we are escalating this to our account manager and reconsidering the renewal.\"].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "969425be4e3014fa434843bede7eaa3040a99c1e50ff8048f49cb8205568c73d",
+  "provider": "ollama",
+  "recorded_at": 1786893068.77826,
+  "schema_version": "v1",
+  "text": "{\"subject\": \"Verification Gap Details\", \"body\": \"Please verify the following evidence: 1. The SP (Identity Provider) did not provide an InResponseTo value in the InResponseTo field of the SAML-INRESP-01 and SAML-INRESP-02 logs. 2. This is critical for confirming the SAML authentication flow's correctness and ensuring proper SSO functionality. 3. The logs are already computed and deterministic, so no further action is needed beyond verification.\",\"requested_artifacts\": [\"sp_request_log\"]}"
+}

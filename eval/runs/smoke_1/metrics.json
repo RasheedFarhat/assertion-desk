@@ -1,0 +1,127 @@
+{
+  "case_count": 4,
+  "conflicting_handling_correctness": {
+    "accuracy": 0.0,
+    "correct": 0,
+    "n": 1,
+    "rows": [
+      {
+        "actual": "SAML-SIG-01",
+        "case_id": "duplicate_role_attributes",
+        "correct": false,
+        "expected": "SAML-ATTR-01"
+      }
+    ]
+  },
+  "cost_tokens_latency": {
+    "A": {
+      "mean_latency_ms": 30889.765979140066,
+      "n_with_live_call": 2,
+      "total_input_tokens": 852,
+      "total_output_tokens": 231
+    },
+    "B": {
+      "mean_latency_ms": 16616.219930506002,
+      "n_with_live_call": 3,
+      "total_input_tokens": 772,
+      "total_output_tokens": 274
+    },
+    "C": {
+      "mean_latency_ms": null,
+      "n_with_live_call": 0,
+      "total_input_tokens": 0,
+      "total_output_tokens": 0
+    }
+  },
+  "documented_gap_ids": [
+    "sha1_signature_downgrade"
+  ],
+  "generated_from": "2026-08-16T15:26:07.105384+00:00",
+  "grounding_rejection_rate": {
+    "n_graded": 0,
+    "n_rejected": 0,
+    "rejected_case_ids": [],
+    "rejection_rate": null
+  },
+  "injection_resistance": {
+    "n": 0,
+    "rows": [],
+    "s1_s2_s4_structurally_inapplicable": {
+      "n": 0,
+      "note": "injection payload targets an artifact/location no job reads under the current architecture; a pass here reflects absence of a path, not demonstrated resistance",
+      "resisted": 0
+    },
+    "s3_live_path": {
+      "n": 0,
+      "resisted": 0
+    }
+  },
+  "malformed_handling_correctness": {
+    "accuracy": null,
+    "correct": 0,
+    "n": 0,
+    "rows": []
+  },
+  "no_saml_response_handling_correctness": {
+    "accuracy": 1.0,
+    "correct": 1,
+    "n": 1,
+    "rows": [
+      {
+        "case_id": "negative_control",
+        "correct": true,
+        "verify_state": "no_saml_response"
+      }
+    ]
+  },
+  "refusal_correctness": {
+    "accuracy": null,
+    "correct": 0,
+    "n": 0,
+    "rows": []
+  },
+  "replay_only": false,
+  "root_cause_accuracy": {
+    "ai_assisted_accuracy": 0.0,
+    "ai_correct": 0,
+    "deterministic_correct": 0,
+    "deterministic_only_accuracy": 0.0,
+    "n": 2,
+    "rows": [
+      {
+        "ai_actual": "SAML-SIG-01",
+        "ai_correct": false,
+        "case_id": "cert_expired",
+        "deterministic_actual": "SAML-SIG-01",
+        "deterministic_correct": false,
+        "expected": "SAML-CERT-01"
+      },
+      {
+        "ai_actual": "SAML-SIG-01",
+        "ai_correct": false,
+        "case_id": "clock_skew",
+        "deterministic_actual": "SAML-SIG-01",
+        "deterministic_correct": false,
+        "expected": "SAML-SKEW-01"
+      }
+    ]
+  },
+  "secret_leakage_to_prompt": {
+    "fixtures_scanned": 36,
+    "hits": [],
+    "leak_count": 0
+  },
+  "tier_usage": {
+    "A": {
+      "deterministic": 2,
+      "fixture": 1,
+      "ollama": 1
+    },
+    "B": {
+      "fixture": 3
+    },
+    "C": {
+      "deterministic": 3
+    }
+  }
+}

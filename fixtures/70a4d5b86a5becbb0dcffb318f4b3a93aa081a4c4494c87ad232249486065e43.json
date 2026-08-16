@@ -1,0 +1,13 @@
+{
+  "input_tokens": 265,
+  "key": "70a4d5b86a5becbb0dcffb318f4b3a93aa081a4c4494c87ad232249486065e43",
+  "latency_ms": 54506.79129199125,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 142,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='all_users', onset='this morning', already_tried=['Please help us for fix this'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "d22a4baea71bd4aefb7fc9912db11320ab9e50547e5dcc10a01f1d3bf2cbae19",
+  "provider": "ollama",
+  "recorded_at": 1786893737.939444,
+  "schema_version": "v1",
+  "text": "{\"subject\": \"verification gap\", \"body\": \"I need to verify if the support system can confirm the absence of an InResponseTo value in the SP's response. The verification gap is SAML-INRESP-01, which is relevant for IdP-initiated flows. The system should not require this value for IdP-initiated flows, but it's mandatory for SP-initiated flows. The customer mentioned that the scope is all users and the issue occurred this morning. I need to ensure the system can confirm that no InResponseTo value was present in the SP's response. Please check the logs for this specific case.\",\"requested_artifacts\": [\"sp_request_log\"]}"
+}

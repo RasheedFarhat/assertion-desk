@@ -1,0 +1,288 @@
+{
+  "case_id": "clock_skew__hostile",
+  "check_counts": {
+    "failed": 4,
+    "not_applicable": 0,
+    "not_tested": 0,
+    "not_verified": 2,
+    "review_required": 1,
+    "verified": 13
+  },
+  "check_results": [
+    {
+      "assurance": "failed",
+      "check_id": "SAML-SIG-01",
+      "evidence_ref": "ID_ee940ce0-ea36-417e-bb09-3175d667167c",
+      "expected": "signature valid against the pinned IdP certificate",
+      "observed": "invalid signature: Signature verification failed: ",
+      "reason": "invalid signature: Signature verification failed: "
+    },
+    {
+      "assurance": "failed",
+      "check_id": "SAML-SIG-02",
+      "evidence_ref": "ID_e83a7121-80ee-4b66-b86c-802c1a6eeba5",
+      "expected": "signature valid against the pinned IdP certificate",
+      "observed": "invalid signature: Signature verification failed: ",
+      "reason": "invalid signature: Signature verification failed: "
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-CERT-01",
+      "evidence_ref": null,
+      "expected": "validity window containing 2026-08-16T06:55:00+00:00",
+      "observed": "valid 2026-08-16T06:48:58+00:00 to 2036-08-16T06:50:38+00:00",
+      "reason": "pinned certificate is within its validity window"
+    },
+    {
+      "assurance": "failed",
+      "check_id": "SAML-CERT-02",
+      "evidence_ref": null,
+      "expected": "89:61:20:cd:b6:45:bd:c5:fe:89:da:55:9e:76:e9:ac:25:da:79:08:06:89:ef:a4:c9:50:3b:9b:24:20:2f:d2",
+      "observed": "a4:ee:61:d8:85:18:d3:98:d2:b6:c5:ce:5b:b7:8d:19:18:b5:b4:b9:94:30:b4:f1:d0:b1:e6:31:cc:2f:d6:a2",
+      "reason": "embedded signing certificate thumbprint does not match the pinned trusted certificate (stale metadata after a key rotation is the common real-world cause)"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-ISS-01",
+      "evidence_ref": null,
+      "expected": "http://127.0.0.1:8080/realms/assertion-desk",
+      "observed": "http://127.0.0.1:8080/realms/assertion-desk",
+      "reason": "Response Issuer matches the configured IdP entity ID"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-ISS-02",
+      "evidence_ref": null,
+      "expected": "http://127.0.0.1:8080/realms/assertion-desk",
+      "observed": "http://127.0.0.1:8080/realms/assertion-desk",
+      "reason": "Assertion Issuer matches the configured IdP entity ID"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-AUD-01",
+      "evidence_ref": null,
+      "expected": "http://127.0.0.1:9091/saml/metadata",
+      "observed": "http://127.0.0.1:9091/saml/metadata",
+      "reason": "this SP's entity ID is present in the assertion's Audience list"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-DEST-01",
+      "evidence_ref": null,
+      "expected": "http://127.0.0.1:9091/saml/acs",
+      "observed": "http://127.0.0.1:9091/saml/acs",
+      "reason": "Response Destination matches the configured ACS URL exactly"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-RECIP-01",
+      "evidence_ref": null,
+      "expected": "http://127.0.0.1:9091/saml/acs",
+      "observed": "http://127.0.0.1:9091/saml/acs",
+      "reason": "SubjectConfirmationData Recipient matches the configured ACS URL exactly"
+    },
+    {
+      "assurance": "not_verified",
+      "check_id": "SAML-INRESP-01",
+      "evidence_ref": null,
+      "expected": null,
+      "observed": "ONELOGIN_89b49ed92bc12dd359397307721f4ae3a0bed637",
+      "reason": "no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should)"
+    },
+    {
+      "assurance": "not_verified",
+      "check_id": "SAML-INRESP-02",
+      "evidence_ref": null,
+      "expected": null,
+      "observed": "ONELOGIN_89b49ed92bc12dd359397307721f4ae3a0bed637",
+      "reason": "no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should)"
+    },
+    {
+      "assurance": "failed",
+      "check_id": "SAML-SKEW-01",
+      "evidence_ref": null,
+      "expected": "<= 180s",
+      "observed": "607s skew (IssueInstant=2026-08-16T06:54:53.492Z, sp_clock=2026-08-16T07:05:00+00:00)",
+      "reason": "IssueInstant exceeds the configured clock skew tolerance of the SP's clock"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-COND-01",
+      "evidence_ref": null,
+      "expected": "evaluation time inside the Conditions window",
+      "observed": "now=2026-08-16T06:55:00+00:00, window=[2026-08-16T06:54:51.491000+00:00, 2026-08-16T06:55:51.491000+00:00)",
+      "reason": "evaluation time falls inside the assertion's Conditions validity window"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-COND-02",
+      "evidence_ref": null,
+      "expected": "evaluation time before NotOnOrAfter",
+      "observed": "now=2026-08-16T06:55:00+00:00, NotOnOrAfter=2026-08-16T06:59:51.491000+00:00",
+      "reason": "SubjectConfirmationData has not expired"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-NAMEID-01",
+      "evidence_ref": null,
+      "expected": "a non-empty NameID",
+      "observed": "alice@example.test",
+      "reason": "NameID is present and non-empty"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-NAMEID-02",
+      "evidence_ref": null,
+      "expected": "one of the SAML 2.0 core \u00a78.3 NameIDFormat identifiers",
+      "observed": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+      "reason": "NameID Format is a recognized SAML identifier"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-SCM-01",
+      "evidence_ref": null,
+      "expected": "urn:oasis:names:tc:SAML:2.0:cm:bearer",
+      "observed": "urn:oasis:names:tc:SAML:2.0:cm:bearer",
+      "reason": "SubjectConfirmation Method is the expected bearer method"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-STATUS-01",
+      "evidence_ref": null,
+      "expected": "urn:oasis:names:tc:SAML:2.0:status:Success",
+      "observed": "urn:oasis:names:tc:SAML:2.0:status:Success",
+      "reason": "IdP reported Success"
+    },
+    {
+      "assurance": "review_required",
+      "check_id": "SAML-ATTR-01",
+      "evidence_ref": null,
+      "expected": "no duplicate Attribute Name values",
+      "observed": "duplicated Attribute Name(s): Role",
+      "reason": "one or more Attribute Name values repeat across separate elements; some SAML libraries (e.g. python3-saml) reject this shape outright even though it parses here"
+    },
+    {
+      "assurance": "verified",
+      "check_id": "SAML-ENC-01",
+      "evidence_ref": null,
+      "expected": "a plaintext (unencrypted) Assertion",
+      "observed": "plaintext assertion",
+      "reason": "assertion is not encrypted; downstream checks can inspect it directly"
+    }
+  ],
+  "error": null,
+  "final_root_cause": "SAML-SIG-01",
+  "grounding": null,
+  "injection": null,
+  "job_a": {
+    "accepted": true,
+    "input_tokens": 440,
+    "instruction_signals": [],
+    "job": "A",
+    "latency_ms": 15629.389290930703,
+    "output_tokens": 117,
+    "parsed": {
+      "already_tried": [
+        "This is the THIRD time I'm writing about this."
+      ],
+      "onset": null,
+      "onset_confidence": 0,
+      "recent_change": null,
+      "recent_change_confidence": 0,
+      "reporter_role": null,
+      "reporter_role_confidence": 0,
+      "scope": "single_user",
+      "scope_confidence": 0.95,
+      "wrong_belief": null,
+      "wrong_belief_confidence": 0
+    },
+    "schema_violations": [],
+    "tier_used": "ollama"
+  },
+  "job_b": {
+    "accepted": true,
+    "input_tokens": 267,
+    "instruction_signals": [],
+    "job": "B",
+    "latency_ms": 31634.742374997586,
+    "output_tokens": 153,
+    "parsed": {
+      "body": "Please verify the following artifacts: SAML-INRESP-01 and SAML-INRESP-02. The system is unable to verify the presence of an expected InResponseTo value in the SP's response. This is critical for ensuring proper SAML authentication flows, especially in IdP-initiated scenarios where the InResponseTo is expected to be absent. The verification gap could impact the system's ability to correctly validate the response from the Service Provider (SP).",
+      "requested_artifacts": [
+        "saml_response",
+        "sp_request_log"
+      ],
+      "subject": "Verification Gap in SAML-INRESP-01 and SAML-INRESP-02"
+    },
+    "schema_violations": [],
+    "tier_used": "ollama"
+  },
+  "job_c": {
+    "accepted": true,
+    "input_tokens": null,
+    "instruction_signals": [],
+    "job": "C",
+    "latency_ms": null,
+    "output_tokens": null,
+    "parsed": {
+      "claims": [
+        {
+          "asserted_state": "failed",
+          "check_id": "SAML-SIG-01",
+          "text": "SAML-SIG-01: invalid signature: Signature verification failed: "
+        },
+        {
+          "asserted_state": "failed",
+          "check_id": "SAML-SIG-02",
+          "text": "SAML-SIG-02: invalid signature: Signature verification failed: "
+        },
+        {
+          "asserted_state": "failed",
+          "check_id": "SAML-CERT-02",
+          "text": "SAML-CERT-02: embedded signing certificate thumbprint does not match the pinned trusted certificate (stale metadata after a key rotation is the common real-world cause)"
+        },
+        {
+          "asserted_state": "failed",
+          "check_id": "SAML-SKEW-01",
+          "text": "SAML-SKEW-01: IssueInstant exceeds the configured clock skew tolerance of the SP's clock"
+        },
+        {
+          "asserted_state": "review_required",
+          "check_id": "SAML-ATTR-01",
+          "text": "SAML-ATTR-01: one or more Attribute Name values repeat across separate elements; some SAML libraries (e.g. python3-saml) reject this shape outright even though it parses here"
+        }
+      ],
+      "fix_steps": [
+        "Review SAML-SIG-01: invalid signature: Signature verification failed: ",
+        "Review SAML-SIG-02: invalid signature: Signature verification failed: ",
+        "Review SAML-CERT-02: embedded signing certificate thumbprint does not match the pinned trusted certificate (stale metadata after a key rotation is the common real-world cause)",
+        "Review SAML-SKEW-01: IssueInstant exceeds the configured clock skew tolerance of the SP's clock",
+        "Review SAML-ATTR-01: one or more Attribute Name values repeat across separate elements; some SAML libraries (e.g. python3-saml) reject this shape outright even though it parses here"
+      ],
+      "root_cause": "SAML-SIG-01",
+      "summary": "Verification found a problem with SAML-SIG-01: invalid signature: Signature verification failed: "
+    },
+    "schema_violations": [],
+    "tier_used": "deterministic"
+  },
+  "label": {
+    "case_id": "clock_skew__hostile",
+    "category": "context_mismatch",
+    "difficulty": "normal",
+    "expected_disposition": "review_required",
+    "expected_root_cause": "SAML-SKEW-01",
+    "expects_parse_failure": false,
+    "fault_id": "clock_skew",
+    "har_ref": "shared_baseline_har",
+    "injection": null,
+    "no_check_coverage_reason": null,
+    "no_saml_response_reason": null,
+    "register": "hostile",
+    "target_check_ids": [
+      "SAML-SKEW-01"
+    ]
+  },
+  "stored_parity_ok": true,
+  "verify_error": null,
+  "verify_state": "ok"
+}

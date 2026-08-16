@@ -1,0 +1,13 @@
+{
+  "input_tokens": 267,
+  "key": "0c5bfa442c5356f33bb508306e61040aa303dbabf9a3a90a58bdd72aa6119d79",
+  "latency_ms": 31634.742374997586,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 153,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='single_user', onset=None, already_tried=[\"This is the THIRD time I'm writing about this.\"].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "a818da103811b49f4ce794fb3f4c836277825949aad791c137a2093b382d9601",
+  "provider": "ollama",
+  "recorded_at": 1786894127.383496,
+  "schema_version": "v1",
+  "text": "{\n\n  \"subject\": \"Verification Gap in SAML-INRESP-01 and SAML-INRESP-02\",\n\n  \"body\": \"Please verify the following artifacts: SAML-INRESP-01 and SAML-INRESP-02. The system is unable to verify the presence of an expected InResponseTo value in the SP's response. This is critical for ensuring proper SAML authentication flows, especially in IdP-initiated scenarios where the InResponseTo is expected to be absent. The verification gap could impact the system's ability to correctly validate the response from the Service Provider (SP).\",\n\n  \"requested_artifacts\": [\n    \"saml_response\",\n    \"sp_request_log\"\n  ]\n\n}"
+}

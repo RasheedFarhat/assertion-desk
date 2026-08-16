@@ -1,0 +1,13 @@
+{
+  "input_tokens": 265,
+  "key": "cb325b617ef502c0cd01842c36975532eaeef593814df4d8aff618d07ea5b1b3",
+  "latency_ms": 27715.748250018805,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 193,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='unknown', onset='null', already_tried=['re-read your SSO setup guide twice'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "fa33369773a5e1d06673f8282c5b4434f94b70d71a8b344fcce90b09df95a0eb",
+  "provider": "ollama",
+  "recorded_at": 1786895507.129173,
+  "schema_version": "v1",
+  "text": "{\n\n  \"subject\": \"Verification Gap Analysis\",\n\n  \"body\": \"I need to verify the following artifacts to resolve the verification gaps identified in the SAML-INRESP-01 and SAML-INRESP-02 issues. The artifacts are: sp_request_log, sp_request_log, and the customer has already tried re-reading the SSO setup guide twice. Please ensure that the logs are reviewed for the presence of an InResponseTo value in the SP's request logs, specifically for IdP-initiated and SP-initiated flows. The verification gaps are as follows: for IdP-initiated flows, there should be no InResponseTo value, and for SP-initiated flows, there should be an InResponseTo value. The logs should be checked for these conditions to confirm the resolution of the gaps. Please provide the relevant logs for analysis.\",\n  \"requested_artifacts\": [\n    \"sp_request_log\"\n  ]\n}"
+}

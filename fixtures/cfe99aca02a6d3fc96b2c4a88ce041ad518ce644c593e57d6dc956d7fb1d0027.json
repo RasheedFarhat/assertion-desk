@@ -1,0 +1,13 @@
+{
+  "input_tokens": 267,
+  "key": "cfe99aca02a6d3fc96b2c4a88ce041ad518ce644c593e57d6dc956d7fb1d0027",
+  "latency_ms": 20448.382833972573,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 115,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='all_users', onset='2pm today', already_tried=['rolled back the WAF change partially'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "663e1658fcc6494f02f484e6194ca841026fea68f2494cf8b29d48082dc34fec",
+  "provider": "ollama",
+  "recorded_at": 1786892319.9865458,
+  "schema_version": "v1",
+  "text": "{\"subject\": \"verification gap\", \"body\": \"I need to verify if the support system can confirm the following: 1. Whether the SP (IdP-initiated) flows have no InResponseTo value, as required by the SAML-INRESP-02 gap. 2. Whether the SP (SP-initiated) flows have no InResponseTo value, as required by the SAML-INRESP-01 gap. Please provide the exact evidence the support system could not verify.\",\"requested_artifacts\": [\"sp_request_log\"]}"
+}

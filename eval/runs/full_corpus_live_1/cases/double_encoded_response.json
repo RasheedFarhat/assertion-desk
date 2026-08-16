@@ -1,0 +1,54 @@
+{
+  "case_id": "double_encoded_response",
+  "check_counts": null,
+  "check_results": [],
+  "error": null,
+  "final_root_cause": null,
+  "grounding": null,
+  "injection": null,
+  "job_a": {
+    "accepted": true,
+    "input_tokens": 450,
+    "instruction_signals": [],
+    "job": "A",
+    "latency_ms": 18964.442583033815,
+    "output_tokens": 125,
+    "parsed": {
+      "already_tried": [
+        "rolled the proxy upgrade back on one node"
+      ],
+      "onset": "null",
+      "onset_confidence": 0,
+      "recent_change": "upgraded our reverse proxy software last night",
+      "recent_change_confidence": 1,
+      "reporter_role": "null",
+      "reporter_role_confidence": 0,
+      "scope": "all_users",
+      "scope_confidence": 0.8,
+      "wrong_belief": "null",
+      "wrong_belief_confidence": 0
+    },
+    "schema_violations": [],
+    "tier_used": "ollama"
+  },
+  "job_b": null,
+  "job_c": null,
+  "label": {
+    "case_id": "double_encoded_response",
+    "category": "artifact_mutation",
+    "difficulty": "malformed",
+    "expected_disposition": "escalate",
+    "expected_root_cause": null,
+    "expects_parse_failure": true,
+    "fault_id": "double_encoded_response",
+    "har_ref": "shared_baseline_har",
+    "injection": null,
+    "no_check_coverage_reason": null,
+    "no_saml_response_reason": null,
+    "register": "precise",
+    "target_check_ids": []
+  },
+  "stored_parity_ok": true,
+  "verify_error": null,
+  "verify_state": "parse_error"
+}

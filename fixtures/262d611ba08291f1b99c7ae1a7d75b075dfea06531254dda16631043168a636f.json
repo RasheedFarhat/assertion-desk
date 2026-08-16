@@ -1,0 +1,13 @@
+{
+  "input_tokens": 263,
+  "key": "262d611ba08291f1b99c7ae1a7d75b075dfea06531254dda16631043168a636f",
+  "latency_ms": 26212.177250068635,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 73,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='all_users', onset='not_stated', already_tried=['not_stated'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "cf629e9ef800b0b08ded88bce54c4d1c50abfd9993f6b8a4c6eb9d68688ceea9",
+  "provider": "ollama",
+  "recorded_at": 1786893569.007196,
+  "schema_version": "v1",
+  "text": "{\"subject\": \"verification_gap\", \"body\": \"I need to verify if the support system can confirm the absence of an InResponseTo value in SP-initiated flows. The system should not provide any evidence of this absence. Please confirm if the support system can demonstrate this lack of verification.\", \"requested_artifacts\": [\"sp_request_log\"]}"
+}

@@ -1,0 +1,13 @@
+{
+  "input_tokens": 265,
+  "key": "9263ecb878b22238c913be763dd86cfddccc424161211882d9c68a8d35cfa676",
+  "latency_ms": 55423.35808300413,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 119,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='single_user', onset='since yesterday', already_tried=['had the user restart their laptop'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "43c321d803164072db7229826feac5f5fd41bf5272c7d2ac2ea7cba2c3cccfbe",
+  "provider": "ollama",
+  "recorded_at": 1786893953.6667452,
+  "schema_version": "v1",
+  "text": "{\"subject\": \"verification gap\", \"body\": \"I need to verify if the system can confirm the absence of an InResponseTo value in the SP's response. The gap is SAML-INRESP-01, which is expected in IdP-initiated flows but not in SP-initiated ones. The system should be able to determine this distinction. Please confirm if the support system can verify the absence of an InResponseTo value in SP-initiated flows, as this is critical for proper authentication and authorization processes.\",\"requested_artifacts\": [\"sp_request_log\"]}"
+}
