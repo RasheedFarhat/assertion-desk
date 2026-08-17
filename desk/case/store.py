@@ -1,19 +1,19 @@
-"""SQLite-backed persistence for Case and TraceEvent (plan section 19). Same honestly
-caveated position as Control Plane's lab/db.py: the schema below is written in portable
-SQL (TEXT/INTEGER columns, `?` parameterized placeholders, no SQLite-only pragmas beyond
-foreign_keys), so it is expected to also work against PostgreSQL (plan section 18 names
-Postgres as the intended production backend, and compose.yaml will eventually run it) --
-but nothing in this repo's test suite runs it against Postgres. Only SQLite is tested.
-"designed to be Postgres-compatible" and "verified Postgres coverage" are different
-claims, and this module only makes the first one -- the exact distinction this
-workspace's own notes on Control Plane's lab/db.py already draw, deliberately repeated
-here rather than assumed silently.
+"""SQLite-backed persistence for Case, TraceEvent, and Approval (plan section 19). Same
+honestly caveated position as Control Plane's lab/db.py: the schema below is written in
+portable SQL (TEXT/INTEGER columns, `?` parameterized placeholders, no SQLite-only
+pragmas beyond foreign_keys), so it is expected to also work against PostgreSQL (plan
+section 18 names Postgres as the intended production backend, and compose.yaml will
+eventually run it) -- but nothing in this repo's test suite runs it against Postgres.
+Only SQLite is tested. "designed to be Postgres-compatible" and "verified Postgres
+coverage" are different claims, and this module only makes the first one -- the exact
+distinction this workspace's own notes on Control Plane's lab/db.py already draw,
+deliberately repeated here rather than assumed silently.
 
 Every statement is hand-written and parameterized (sqlite3's native `?` placeholders) --
 no ORM, no string-built SQL. security_flags is the one Case field with no native SQL
 array type available in either engine without an extension, so it is stored as a
-JSON-encoded TEXT column and decoded back into a tuple on read; every other Case and
-TraceEvent field maps directly onto one column.
+JSON-encoded TEXT column and decoded back into a tuple on read; every other Case,
+TraceEvent, and Approval field maps directly onto one column.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from desk.case.approval import Approval
 from desk.case.state import Case, CaseState
 from desk.case.trace import TraceEvent
 
@@ -51,6 +52,20 @@ CREATE TABLE IF NOT EXISTS trace_events (
     PRIMARY KEY (case_id, seq),
     FOREIGN KEY (case_id) REFERENCES cases(id)
 );
+
+CREATE TABLE IF NOT EXISTS approvals (
+    id                TEXT PRIMARY KEY,
+    case_id           TEXT NOT NULL,
+    approver          TEXT NOT NULL,
+    decision          TEXT NOT NULL,
+    responded_at      TEXT NOT NULL,
+    override_reason   TEXT,
+    channel           TEXT NOT NULL,
+    latency_seconds   REAL,
+    FOREIGN KEY (case_id) REFERENCES cases(id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_approvals_case_id ON approvals(case_id);
 """
 
 
@@ -85,6 +100,19 @@ def _row_to_trace_event(row: sqlite3.Row) -> TraceEvent:
         prev_hash=row["prev_hash"],
         at=row["at"],
         hash=row["hash"],
+    )
+
+
+def _row_to_approval(row: sqlite3.Row) -> Approval:
+    return Approval(
+        id=row["id"],
+        case_id=row["case_id"],
+        approver=row["approver"],
+        decision=row["decision"],
+        responded_at=row["responded_at"],
+        override_reason=row["override_reason"],
+        channel=row["channel"],
+        latency_seconds=row["latency_seconds"],
     )
 
 
@@ -175,3 +203,26 @@ class CaseStore:
             (case_id,),
         ).fetchone()
         return _row_to_trace_event(row) if row is not None else None
+
+    def insert_approval(self, approval: Approval) -> None:
+        self.conn.execute(
+            "INSERT INTO approvals (id, case_id, approver, decision, responded_at, "
+            "override_reason, channel, latency_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                approval.id,
+                approval.case_id,
+                approval.approver,
+                approval.decision,
+                approval.responded_at,
+                approval.override_reason,
+                approval.channel,
+                approval.latency_seconds,
+            ),
+        )
+        self.conn.commit()
+
+    def get_approvals(self, case_id: str) -> list[Approval]:
+        rows = self.conn.execute(
+            "SELECT * FROM approvals WHERE case_id = ? ORDER BY responded_at", (case_id,)
+        ).fetchall()
+        return [_row_to_approval(r) for r in rows]

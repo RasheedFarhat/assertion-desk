@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import pytest
 
+from desk.case.approval import record_decision
 from desk.case.state import Case, CaseState, new_case, transition
 from desk.case.store import CaseStore, connect
 from desk.case.trace import append_event, verify_chain
@@ -144,3 +145,67 @@ def test_last_trace_event_can_seed_the_next_append(store: CaseStore) -> None:
     result = verify_chain("case-1", trace)
     assert result.valid is True
     assert len(trace) == 2
+
+
+# --------------------------------------------------------------------------------- #
+# Approvals
+# --------------------------------------------------------------------------------- #
+
+
+def test_insert_and_get_approvals_round_trips_every_field(store: CaseStore) -> None:
+    store.insert_case(new_case(id="case-1", correlation_id="corr-1", state=CaseState.VERIFYING))
+    approval = record_decision(
+        id="appr-1",
+        case_id="case-1",
+        approver="analyst@example.com",
+        decision="escalated",
+        channel="gmail",
+        override_reason="root cause disputed",
+        requested_at="2026-08-17T00:00:00+00:00",
+        responded_at="2026-08-17T00:05:00+00:00",
+    )
+    store.insert_approval(approval)
+    fetched = store.get_approvals("case-1")
+    assert fetched == [approval]
+
+
+def test_get_approvals_for_a_case_with_none_is_empty(store: CaseStore) -> None:
+    assert store.get_approvals("no-such-case") == []
+
+
+def test_get_approvals_orders_by_responded_at_and_scopes_to_the_case(store: CaseStore) -> None:
+    store.insert_case(new_case(id="case-1", correlation_id="corr-1", state=CaseState.VERIFYING))
+    store.insert_case(new_case(id="case-2", correlation_id="corr-2", state=CaseState.VERIFYING))
+    later = record_decision(
+        id="appr-later", case_id="case-1", approver="a", decision="approved",
+        channel="gmail", responded_at="2026-08-17T02:00:00+00:00",
+    )
+    earlier = record_decision(
+        id="appr-earlier", case_id="case-1", approver="a", decision="approved",
+        channel="gmail", responded_at="2026-08-17T01:00:00+00:00",
+    )
+    other_case = record_decision(
+        id="appr-other", case_id="case-2", approver="a", decision="approved",
+        channel="gmail", responded_at="2026-08-17T00:30:00+00:00",
+    )
+    store.insert_approval(later)
+    store.insert_approval(earlier)
+    store.insert_approval(other_case)
+
+    fetched = store.get_approvals("case-1")
+    assert [a.id for a in fetched] == ["appr-earlier", "appr-later"]
+
+
+def test_approval_override_reason_none_round_trips_as_none(store: CaseStore) -> None:
+    store.insert_case(new_case(id="case-1", correlation_id="corr-1", state=CaseState.VERIFYING))
+    approval = record_decision(id="appr-1", case_id="case-1", approver="a", decision="approved", channel="gmail")
+    store.insert_approval(approval)
+    assert store.get_approvals("case-1")[0].override_reason is None
+
+
+def test_approval_latency_seconds_none_round_trips_as_none(store: CaseStore) -> None:
+    store.insert_case(new_case(id="case-1", correlation_id="corr-1", state=CaseState.VERIFYING))
+    approval = record_decision(id="appr-1", case_id="case-1", approver="a", decision="approved", channel="gmail")
+    assert approval.latency_seconds is None
+    store.insert_approval(approval)
+    assert store.get_approvals("case-1")[0].latency_seconds is None
