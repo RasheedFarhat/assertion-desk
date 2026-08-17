@@ -140,6 +140,34 @@ def insert_xml_comment(xml_bytes: bytes, comment_text: str) -> bytes:
     return (text[:end_of_open_tag] + comment + text[end_of_open_tag:]).encode("utf-8")
 
 
+def insert_xml_comment_near(xml_bytes: bytes, tag_local_name: str, comment_text: str, occurrence: int = 0) -> bytes:
+    """Insert an XML comment immediately after the occurrence-th element with this local
+    tag name's opening tag, rather than at the document root (insert_xml_comment's spot).
+
+    This exists specifically so an adversarial payload can land *inside* a signed element
+    (e.g. next to a real saml:Attribute, inside the AttributeStatement) without changing
+    what the signature covers. XML canonicalization -- exclusive C14N without comments,
+    what this project's signed responses use -- strips comments before the digest is
+    computed, but it does NOT strip new attributes or attribute-value edits. add_attribute
+    and rewrite_attribute therefore always change the digest when used inside a signed
+    element; this function never does. Found the hard way: an earlier version of the S4
+    adversarial payload (harness/adversarial.py) used add_attribute to hide a payload in
+    saml:Attribute[0]'s FriendlyName, which broke SAML-SIG-01 as a pure side effect of the
+    mutation mechanism, not of the payload content -- directly contradicting this module's
+    own stated invariant that an injection payload must land on a fault's already-correct
+    check results (see harness/adversarial.py's module docstring). Use this whenever a
+    payload needs to sit next to specific signed content rather than at the document root.
+    """
+    text = xml_bytes.decode("utf-8")
+    pattern = re.compile(rf"<([\w:]*{tag_local_name}\b[^>]*?)(/?)>")
+    matches = list(pattern.finditer(text))
+    if occurrence >= len(matches):
+        raise ValueError(f"only {len(matches)} {tag_local_name} element(s) found, requested index {occurrence}")
+    m = matches[occurrence]
+    comment = f"<!-- {comment_text} -->"
+    return (text[: m.end()] + comment + text[m.end() :]).encode("utf-8")
+
+
 def _find_acs_post_entry(har: dict) -> dict:
     """Locate the one HAR entry that POSTs the SAMLResponse to the SP's ACS endpoint --
     the only entry the two HAR-level faults below need to touch. Raises if the real

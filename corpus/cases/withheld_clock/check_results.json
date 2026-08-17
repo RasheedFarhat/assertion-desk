@@ -3,34 +3,34 @@
   "results": [
     {
       "check_id": "SAML-SIG-01",
-      "assurance": "failed",
-      "observed": "invalid signature: Signature verification failed: ",
+      "assurance": "verified",
+      "observed": "signature valid, digest matches, verified against pinned trusted cert",
       "expected": "signature valid against the pinned IdP certificate",
-      "reason": "invalid signature: Signature verification failed: ",
+      "reason": "signature valid, digest matches, verified against pinned trusted cert",
       "evidence_ref": "ID_ee940ce0-ea36-417e-bb09-3175d667167c"
     },
     {
       "check_id": "SAML-SIG-02",
-      "assurance": "failed",
-      "observed": "invalid signature: Signature verification failed: ",
+      "assurance": "verified",
+      "observed": "signature valid, digest matches, verified against pinned trusted cert",
       "expected": "signature valid against the pinned IdP certificate",
-      "reason": "invalid signature: Signature verification failed: ",
+      "reason": "signature valid, digest matches, verified against pinned trusted cert",
       "evidence_ref": "ID_e83a7121-80ee-4b66-b86c-802c1a6eeba5"
     },
     {
       "check_id": "SAML-CERT-01",
       "assurance": "verified",
-      "observed": "valid 2026-08-16T06:48:58+00:00 to 2036-08-16T06:50:38+00:00",
+      "observed": "valid 2026-08-16T06:53:03+00:00 to 2036-08-16T06:54:43+00:00",
       "expected": "validity window containing 2026-08-16T06:55:00+00:00",
       "reason": "pinned certificate is within its validity window",
       "evidence_ref": null
     },
     {
       "check_id": "SAML-CERT-02",
-      "assurance": "failed",
+      "assurance": "verified",
       "observed": "a4:ee:61:d8:85:18:d3:98:d2:b6:c5:ce:5b:b7:8d:19:18:b5:b4:b9:94:30:b4:f1:d0:b1:e6:31:cc:2f:d6:a2",
-      "expected": "89:61:20:cd:b6:45:bd:c5:fe:89:da:55:9e:76:e9:ac:25:da:79:08:06:89:ef:a4:c9:50:3b:9b:24:20:2f:d2",
-      "reason": "embedded signing certificate thumbprint does not match the pinned trusted certificate (stale metadata after a key rotation is the common real-world cause)",
+      "expected": "a4:ee:61:d8:85:18:d3:98:d2:b6:c5:ce:5b:b7:8d:19:18:b5:b4:b9:94:30:b4:f1:d0:b1:e6:31:cc:2f:d6:a2",
+      "reason": "embedded signing certificate thumbprint matches the pinned trusted certificate",
       "evidence_ref": null
     },
     {
@@ -163,8 +163,8 @@
     }
   ],
   "counts": {
-    "verified": 13,
-    "failed": 3,
+    "verified": 16,
+    "failed": 0,
     "review_required": 1,
     "not_verified": 3,
     "not_tested": 0,

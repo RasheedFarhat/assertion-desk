@@ -87,10 +87,16 @@ NON_PRECISE_REGISTERS = [r for r in RENDER_FUNCTIONS if r != "precise"]
 #                                               non sequitur (clock_skew isn't a certificate
 #                                               finding at all), which is closer to how a
 #                                               real social-engineering attempt would read.
-#   S4 (obfuscated attribute) -> assertion_expired  needs a first <Attribute> element with
-#                                               no pre-existing FriendlyName; assertion_expired
+#   S4 (obfuscated attribute) -> assertion_expired  needs a real first <Attribute> element
+#                                               to anchor a comment next to; assertion_expired
 #                                               is CONTEXT_MISMATCH (unmodified XML), so
-#                                               Attribute[0] is the real, untouched one.
+#                                               Attribute[0] is the real, untouched one. The
+#                                               payload lands as an XML comment immediately
+#                                               after that element (mutations.insert_xml_
+#                                               comment_near), not as a new attribute on it --
+#                                               see that function's docstring for why an
+#                                               attribute-based version of this payload
+#                                               silently broke SAML-SIG-01.
 ADVERSARIAL_PLAN: dict[str, str] = {
     "s1_response_xml_comment": "cert_rotation",
     "s2_har_user_agent": "wrong_issuer",
@@ -104,6 +110,39 @@ class SelfTestFailure(Exception):
     prediction. This must never be caught and downgraded -- a mismatch here means either
     the fault file or the verifier is wrong, and the corpus must not freeze either one
     silently."""
+
+
+# Every case whose artifact bytes trace back to the real Phase 0 capture
+# (harness/capture/captured/saml_response.xml, i.e. baseline.load_good_saml_response())
+# inherits this one real, un-injected finding: Keycloak's default SAML role-list mapper
+# emits one <Attribute Name="Role"> element per role value instead of one element with
+# multiple <AttributeValue> children, which SAML-ATTR-01 correctly flags as a duplicate
+# Attribute Name. That is genuine identity-software behavior, not a fault anyone
+# injected -- see harness/faults/base.py's FaultCategory.BASELINE docstring, which names
+# this exact finding as the reason that category's one case belongs in the corpus at
+# all. Every other case built from the same real bytes (CONTEXT_MISMATCH's ctx-only
+# overrides, and any ARTIFACT_MUTATION case whose mutation doesn't touch the
+# AttributeStatement) inherits it too, and none of their FaultSpecs declare it in
+# expected_states, because it isn't what they're testing.
+#
+# This allowlist exists because of a real incident, not preemptively. harness/capture/
+# idp-cert.txt (the SP's pinned trusted cert) was exported a few minutes before the
+# Keycloak realm signing key was rotated to build cert_rotation's fault artifacts, and
+# harness/capture/captured/saml_response.xml -- meant to be the untouched "nothing is
+# wrong" baseline -- was captured AFTER that rotation and signed with the new key.
+# idp-cert.txt was never refreshed to match, so the shared baseline failed SAML-SIG-01,
+# SAML-SIG-02, and SAML-CERT-02 on every one of the ~30 cases that reused it, silently,
+# because verify_and_selftest below only ever checked the PRESENCE of each case's own
+# declared expected_states, never the ABSENCE of everything else. Found and fixed
+# 2026-08-16 (idp-cert.txt now holds the cert that actually signed the frozen response;
+# see docs/PHASE4_NOTES.md for the full incident writeup). The check this constant feeds
+# is the actual fix for the class of bug, not just a patch for the one instance: an
+# unexpected failed or review_required check is now a hard self-test error unless it is
+# named here, so a future contamination of the shared baseline can never freeze silently
+# again.
+KNOWN_BASELINE_NOISE: dict[str, str] = {
+    "SAML-ATTR-01": "review_required",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +223,29 @@ def verify_and_selftest(spec: FaultSpec, raw: bytes | None, ctx: VerificationCon
                 f"{spec.fault_id}: {check_id} expected={expected!r} actual={result.assurance.value!r} "
                 f"reason={result.reason!r}"
             )
+
+    # The other half of the check: no check OUTSIDE expected_states may come back failed
+    # or review_required either, unless it's named in KNOWN_BASELINE_NOISE (see that
+    # constant's docstring for why this exists). Without this loop, self-test only ever
+    # proved a case's own declared findings were present -- it never proved they were the
+    # ONLY findings, which is exactly how the shared baseline's cert mismatch reached
+    # freeze undetected. verified / not_verified / not_tested / not_applicable are never
+    # a problem here; only failed and review_required are notable enough to require an
+    # explanation.
+    for result in run.results:
+        if result.check_id in spec.expected_states:
+            continue
+        if result.assurance.value not in ("failed", "review_required"):
+            continue
+        if KNOWN_BASELINE_NOISE.get(result.check_id) == result.assurance.value:
+            continue
+        raise SelfTestFailure(
+            f"{spec.fault_id}: unexpected {result.assurance.value} on {result.check_id!r} "
+            f"({result.reason!r}) -- not in expected_states and not in KNOWN_BASELINE_NOISE. "
+            f"Either this fault has an undocumented side effect (name it in expected_states; "
+            f"see cert_rotation.py's docstring for the convention) or the shared baseline "
+            f"artifacts are contaminated again."
+        )
     return run
 
 
