@@ -162,14 +162,21 @@ fixtures/     recorded model responses for deterministic replay
 eval/         run.py, metrics.py, report.py
 n8n/          four workflow exports (intake, approval, evidence chase, eval report)
 mocks/itsm/   a ticket stub -- explicitly not ServiceNow, Jira, or Zendesk
-docs/         MEASUREMENTS.md and dated phase notes (PHASE0-4)
+docs/         architecture, AI design, threat model, corpus, evaluation, limitations,
+              measurements, and dated phase notes (PHASE0-4)
 tests/        one package per desk/eval/harness module
+.github/      CI (pytest + corpus-verify), eval-replay diff gate, CodeQL, gitleaks
 ```
 
-`docs/` currently holds `MEASUREMENTS.md` and the phase-by-phase build notes
-(`PHASE0_NOTES.md` through `PHASE4_NOTES.md`); the architecture, AI-design, threat-model,
-corpus, evaluation-framework, and limitations write-ups the plan calls for are still owed as
-separate documents and are not yet split out of the phase notes and this README.
+`docs/` holds seven standalone write-ups plus the phase-by-phase build notes:
+[`ARCHITECTURE.md`](docs/ARCHITECTURE.md) (module map and data flow),
+[`AI_DESIGN.md`](docs/AI_DESIGN.md) (the 10-question justification per model job),
+[`THREAT_MODEL.md`](docs/THREAT_MODEL.md) (T1-T10, each with a measured-or-not status),
+[`CORPUS.md`](docs/CORPUS.md) (the fault catalogue and how ground truth is established),
+[`EVALUATION.md`](docs/EVALUATION.md) (every metric's exact definition),
+[`LIMITATIONS.md`](docs/LIMITATIONS.md) (accuracy, scale, and persistence boundaries stated
+plainly), and [`MEASUREMENTS.md`](docs/MEASUREMENTS.md) (the dated run this README's numbers
+come from, and the reproducibility methodology behind `make eval-replay`).
 
 ## What this is not
 
