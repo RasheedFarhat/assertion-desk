@@ -26,7 +26,10 @@ help:
 	@echo "Note (2026-08-17): desk/api.py now exists (POST /cases, case state machine over"
 	@echo "HTTP, and a server-rendered /cases/<id>/card). 'make demo' is still a CLI-only"
 	@echo "walkthrough of the eval corpus, not the case-card experience -- run 'make serve'"
-	@echo "and open a card in a browser for that. n8n (plan section 17) is still not wired."
+	@echo "and open a card in a browser for that. n8n/*.json (plan section 17) now exist and"
+	@echo "are importable into a running n8n instance -- see n8n/README.md -- but nothing"
+	@echo "auto-imports or activates them, so there is still no scripted webhook-to-approval"
+	@echo "walkthrough without that manual step."
 
 # --------------------------------------------------------------------------------- #
 # Test suites -- one target per package, matching the doc precedent in
@@ -109,9 +112,11 @@ eval-replay:
 # Honest scope note: the plan's section 13 demo is a 90-second recording of a
 # server-rendered case card. desk/api.py exists now (POST /cases through the real
 # case state machine, GET /cases/<id>/card), so that experience is reachable via
-# `make serve` -- but n8n (plan section 17: intake webhook, approval send-and-wait,
-# evidence chase, nightly eval report) is still not wired, so there is no scripted
-# webhook-to-approval walkthrough yet. This target remains a CLI-only stand-in: it
+# `make serve` -- and n8n/*.json (plan section 17: intake webhook, approval
+# send-and-wait, evidence chase, nightly eval report) now exist and are importable
+# into n8n (see n8n/README.md), but nothing auto-imports or activates them, so there
+# is still no scripted webhook-to-approval walkthrough without that manual step.
+# This target remains a CLI-only stand-in: it
 # runs 5 fixture-covered cases in replay-only mode -- no network, no API key, $0 --
 # chosen to show one of each outcome shape the eval framework distinguishes:
 #   cert_expired                         clean single-fault root cause
