@@ -20,10 +20,15 @@ from desk.reason.schemas import SCHEMA_VERSION
 
 
 class ReplayMiss(Exception):
-    """Raised in replay_only mode when no fixture covers this exact
-    (prompt, model_id, schema_version). Loud on purpose: replay mode's entire point is
-    that it never touches the network, so a miss must stop the run, not silently fall
-    through to a live call that would break `make eval-replay`'s $0/no-key guarantee."""
+    """Raised in replay_only mode when a prompt has neither a recorded model-response
+    fixture nor a deterministic-fallback marker (see FixtureCache.is_marked_deterministic)
+    for any configured client. Loud on purpose: replay mode's entire point is that it
+    never touches the network, so a genuinely untested prompt must stop the run, not
+    silently fall through to a live call that would break `make eval-replay`'s
+    $0/no-key guarantee. A prompt whose live run legitimately exhausted every tier and
+    fell back to the deterministic template does NOT raise this -- that outcome is
+    itself recorded and replayed, since rendering the deterministic template touches
+    neither the network nor an API key either."""
 
 
 @dataclass
@@ -70,6 +75,11 @@ def run_with_fallback(
             )
 
     if replay_only:
+        if record_fixtures and fixtures.is_marked_deterministic(prompt, schema_version):
+            attempts.append(TierAttempt(tier="deterministic", provider=None, ok=True))
+            return TieredResult(
+                tier_used="deterministic", response=None, fixture_hit=False, attempts=attempts
+            )
         tried = [getattr(c, "model_id", c.__class__.__name__) for c in clients]
         raise ReplayMiss(f"replay_only=True and no fixture found for any of {tried}")
 
@@ -105,5 +115,9 @@ def run_with_fallback(
         # through to the next configured client
 
     # Every tier exhausted. The caller renders a deterministic template; this function
-    # only reports that it had to.
+    # only reports that it had to. Record that fact so a later replay-only run knows
+    # this exact prompt legitimately terminates here, instead of raising ReplayMiss
+    # for a prompt that really was exercised live (see is_marked_deterministic).
+    if record_fixtures:
+        fixtures.mark_deterministic(prompt, schema_version)
     return TieredResult(tier_used="deterministic", response=None, fixture_hit=False, attempts=attempts)

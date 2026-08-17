@@ -130,7 +130,15 @@ class OllamaClient:
             "prompt": prompt,
             "stream": False,
             "format": schema,
-            "options": {"temperature": 0},
+            # seed is not cosmetic: temperature=0 alone does not make Ollama
+            # deterministic across separate calls to the identical prompt (confirmed
+            # empirically 2026-08-17 -- see docs/PHASE4_NOTES.md). Without a fixed
+            # seed, Ollama draws a new one per request, so the same prompt run twice
+            # can legitimately produce two different sampled outputs even at
+            # temperature 0. Pinning it is what makes a live run's fixtures a stable
+            # thing to replay rather than a snapshot of whichever answer happened to
+            # land first.
+            "options": {"temperature": 0, "seed": 0},
         }
 
         start = time.monotonic()
