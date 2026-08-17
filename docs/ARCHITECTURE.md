@@ -79,8 +79,9 @@ customer artifact bundle  (UNTRUSTED: prose, HAR, SAMLResponse, IdP metadata)
         │          oversight (see the module's own docstring).
         ▼
   desk/case        CaseState machine (desk/case/state.py), hash-linked trace
-        │          (desk/case/trace.py), Postgres/SQLite persistence for
-        │          Case, TraceEvent, and Approval only -- see
+        │          (desk/case/trace.py), SQLite persistence for Case,
+        │          TraceEvent, and Approval only. The SQL is written with
+        │          portability in mind, but PostgreSQL is not tested -- see
         │          docs/LIMITATIONS.md for what is not yet persisted.
         │          desk/case/orchestrate.py drives VERIFYING -> * using a
         │          real PipelineResult and PolicyInput, mirroring

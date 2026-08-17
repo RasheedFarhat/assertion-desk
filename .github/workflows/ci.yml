@@ -40,8 +40,8 @@ jobs:
 
       # Full suite, no external services and no API key required: corpus/ and
       # fixtures/ are both committed to the repo, so tests/ never reaches out to
-      # Keycloak, Playwright, or a live model provider. Same 357 tests `make test`
-      # runs locally (docs/MEASUREMENTS.md, docs/LIMITATIONS.md).
+      # Keycloak, Playwright, or a live model provider. This is the same suite
+      # `make test` runs locally.
       - name: Run test suite
         run: python3 -m pytest tests/ -v
 

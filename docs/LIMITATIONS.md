@@ -100,10 +100,12 @@ not inferred:
   workflow treats a missing baseline as "nothing to compare," not an error, and does not
   silently promote the first run to baseline status, that has to be a deliberate human
   decision.
-- **`.github/workflows/` exists as an empty directory.** No CI, no automated `eval-replay` gate
-  on pull requests, no CodeQL, no gitleaks scan are wired yet, despite being named in the
-  plan's repository structure. Nothing in this repository is currently enforced by CI; every
-  guarantee in this document rests on running the commands by hand.
+- **CI covers committed, offline behavior, not the live infrastructure paths.**
+  `.github/workflows/` now runs the full pytest suite and corpus-integrity checks, reproduces
+  `eval-replay` and diffs its metrics against the committed baseline, and runs CodeQL plus
+  gitleaks. It does not exercise live Gemini/Ollama calls, regenerate the corpus against
+  Keycloak, import or activate n8n workflows, or test the Compose services as an integrated
+  deployment. Those paths still rely on explicit local verification.
 - **WF4's `make eval-replay` step needs the repository and a provisioned `.venv` on whatever
   machine runs it.** n8n's Execute Command node runs inside n8n's own container under the
   default `orchestration` Compose profile, which has no repo bind-mount by design. Running WF4

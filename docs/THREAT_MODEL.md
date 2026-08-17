@@ -195,12 +195,16 @@ grounding, which must never move into n8n (see `n8n/README.md`).
 
 ## T10 - Secret sprawl in the repository
 
-**Real gap, not mitigated yet.** `grep`-verified: no `gitleaks` configuration or CI job exists
-anywhere in this repository. `.github/workflows/` is an empty directory (see `docs/LIMITATIONS.md`
-for the full CI gap). This threat is currently addressed only by discipline (the corpus generator
-scrubs at generation time, per `harness/generate.py`) and by T1's independent secret-scan test at
-the application layer, not by a repository-wide CI gate. Naming this as unmitigated rather than
-implying CI coverage that does not exist is the point of this document.
+**Mitigation.** `.github/workflows/gitleaks.yml` runs gitleaks on pushes, pull requests, a daily
+schedule, and manual dispatch. Checkout uses full history rather than a shallow tip so a secret
+committed and later deleted is still in scope. This is separate from the application-layer prompt
+scan in T1: gitleaks inspects repository history, while `eval/metrics.py` independently scans the
+literal stored model prompts.
+
+**Remaining boundary.** A passing pattern-based scan cannot prove that no credential exists, and
+the repository does not configure organization-level push protection here. Any discovered secret
+would still require revocation and history remediation; the workflow is a detection gate, not a
+substitute for credential lifecycle controls.
 
 ## What this threat model does not cover
 

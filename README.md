@@ -1,210 +1,227 @@
-# Assertion Desk
+<div align="center">
 
-[![CI](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/ci.yml/badge.svg)](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/ci.yml)
-[![Eval Replay](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/eval-replay.yml/badge.svg)](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/eval-replay.yml)
-[![CodeQL](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/codeql.yml/badge.svg)](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/codeql.yml)
-[![gitleaks](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/gitleaks.yml)
+<h1>Assertion Desk</h1>
 
-A support-triage system for broken enterprise SSO that quarantines the customer's live
-credentials before anything reads them, verifies the SAML federation trust chain
-deterministically, and will not let an AI assert a fact its verifier did not independently
-confirm.
+<p><strong>Deterministic evidence before generated explanations.</strong></p>
 
-## Why this exists
+<p>A security-first SAML support-triage lab that treats both customer evidence and model output as untrusted.</p>
 
-In October 2023, Okta's support system was breached after customers uploaded HAR files to
-support tickets to help diagnose login problems, and an attacker read live session tokens
-straight out of those files. A HAR export is still the standard artifact for debugging a
-broken SSO integration today, and more than half of enterprise SSO support tickets turn out
-to be a plain IdP misconfiguration, a rotated certificate, a mistyped ACS URL, that a
-deterministic check can find in milliseconds once the credential-bearing evidence has been
-made safe to look at.
+<p><a href="#run-the-proof">Quickstart</a> · <a href="#how-it-works">Architecture</a> · <a href="#measured-not-marketed">Evaluation</a> · <a href="docs/THREAT_MODEL.md">Threat model</a> · <a href="docs/LIMITATIONS.md">Limitations</a></p>
 
-Assertion Desk is the support desk built around that order of operations: quarantine first,
-verify deterministically, then let a model read the human and write the answer, never the
-other way around.
+<p><code>make eval-replay</code> · 50-case offline proof · demo-scoped, not production-ready</p>
 
-## Measured results
+</div>
 
-Full corpus (50 executable cases of 51 in `corpus/MANIFEST.json`), run 2026-08-17, no
-`GEMINI_API_KEY` configured, so every model call in this run went to the local Ollama
-fallback tier (`qwen3:1.7b`), never Gemini. These are honest numbers for the free local
-fallback path, not the system's intended Gemini-primary path. Full breakdown, including why
-the 65.0% number is what it is, in [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md).
+## Why it exists
 
-| Metric | Threshold | Measured | Met? |
-|---|---:|---:|:---:|
-| Root-cause accuracy, top-1, AI-assisted (`normal` stratum, n=40) | ≥ 85% | **65.0%** (26/40) | **No** |
-| Refusal correctness (`ambiguous` stratum, n=2) | ≥ 90% | **100.0%** (2/2) | Yes |
-| Injection resistance, the one case with a genuine live model path (n=1) | 0% outcome change | **100% resisted** (1/1) | Yes, n=1 |
-| Secret leakage to prompt, independent scan of 145 recorded outbound prompts | 0 | **0** | Yes |
-| Cost per case, this run (fixture cache + local Ollama, no Gemini call occurred) | reported | **$0** | n/a |
-| Deterministic-only baseline, same 40 cases, model disabled | reported, not thresholded | **90.0%** (36/40) | n/a |
+In 2023, an attacker accessed files in Okta's customer support system. Some were HAR files containing session tokens that could be used to hijack legitimate sessions, a failure mode documented in [Okta's incident report](https://sec.okta.com/articles/2023/11/unauthorized-access-oktas-support-case-management-system-root-cause/). The same artifacts that make SSO failures diagnosable can also contain live credentials.
 
-**The number that matters most here is reported honestly even though it failed:** AI-assisted
-root-cause accuracy trails the deterministic-only baseline by 25 points, driven by two named,
-disclosed causes, not one undifferentiated bug: the grounding validator correctly declining to
-guess (9 of 14 misses) and a specific, repeatable model bias toward citing one particular check
-(5 of 14 misses). Neither is hidden or tuned away. See
-[`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) for the case-by-case breakdown.
+Assertion Desk explores a safer order of operations: quarantine sensitive material, establish SAML facts with deterministic checks, allow a model to explain only those facts, validate its claims, and require human approval before anything customer-facing is published.
 
-Reproduce every number above yourself, no API key, no network, $0:
+> **The verifier decides what is true. The model decides how to explain it.**
 
-```
+## Run the proof
+
+The primary demo is a committed, checksummed corpus replay. After dependency installation it requires **no API key, model service, Keycloak instance, or network access**, and a cache miss fails loudly instead of contacting a provider.
+
+```bash
+git clone https://github.com/RasheedFarhat/assertion-desk.git
+cd assertion-desk
+python3 -m venv .venv
+.venv/bin/python3 -m pip install -r requirements.txt
 make eval-replay
 ```
 
-That command runs the full corpus from committed `fixtures/`, writes a fresh report and
-`metrics.json`, and a byte-for-byte diff against the committed
-`eval/runs/20260817T044253Z/metrics.json` (excluding the timestamp and the `replay_only` flag)
-is the reproducibility claim itself.
+The replay runs all 50 executable cases, writes a fresh report and `metrics.json`, and reproduces the committed evaluation baseline. Then explore the system from three angles:
 
-## 90-second demo
-
-Not recorded yet. `make demo` runs a five-case CLI walkthrough (clean diagnosis, conflicting
-evidence, missing evidence, a negative control, and an injection attempt) that covers the same
-ground the recording will; see the target's own comment in `Makefile` for the exact case list.
-A server-rendered case card with the model-input-transcript toggle already exists behind
-`make serve`, so this is a recording task, not a missing feature.
-
-## Architecture
-
-**The verifier decides what is true. The model decides what to say about it.**
-
-```
-customer artifact bundle  (UNTRUSTED: prose, HAR, SAMLResponse, IdP metadata)
-        │
-        ▼
-  desk/custody     secret & PII quarantine -> typed placeholders          NO AI
-        │          measured: 0 secrets reached 145 outbound prompts
-        ▼
-  desk/verify      ~20 federation checks -> six-state assurance           NO AI
-        │          verified | failed | review_required | not_verified |
-        │          not_tested | not_applicable -- absence of evidence
-        │          can never produce "verified"
-        ▼
-  desk/reason      3 schema-bound Gemini calls (Ollama fallback,          AI
-        │          fixture replay) -- Job C reads check results and
-        │          Job A's structured facts, never the raw artifacts
-        ▼
-  desk/ground      rejects any model claim citing an unknown check ID     NO AI
-        │          or a state the verifier didn't produce
-        │          measured: 25% of real model outputs rejected
-        ▼
-  desk/policy      auto | review | escalate | block                      NO AI
-        ▼
-  desk/case        state machine, hash-linked trace, Postgres/SQLite
-        ▼
-  n8n WF1-WF4      webhook intake, human approval, evidence chase,
-                   nightly eval report -- orchestration only, never
-                   authoritative (the pipeline runs with n8n stopped)
+```bash
+make demo   # five representative cases, replay-only
+make test   # full desk/, eval/, and harness/ suite
+make help   # every supported target and its prerequisites
 ```
 
-The model is never asked for a root cause unless the verifier already produced a `failed`
-check to reason about, and every claim it makes downstream of that is cross-checked against a
-real check ID and a real assurance state before a human or a customer ever sees it. Remove the
-model entirely and the deterministic-only path still answers 90.0% of the `normal` stratum
-correctly, which is the honest measure of how much of this problem is actually deterministic.
+<details>
+<summary><strong>Native xmlsec prerequisites</strong></summary>
 
-## What this proves and what it does not
+`python3-saml` and `xmlsec` require native XML Security libraries before `pip install`.
 
-**Proves, with real measurement:** the full pipeline runs end to end across five strata
-(normal, ambiguous, conflicting, adversarial, malformed, plus a negative control) with zero
-crashes; the custody stage leaked zero secrets into 145 real outbound prompts; the grounding
-validator rejects real model output at a meaningful rate (25%) rather than never firing; the
-fallback cascade degrades to a working answer whenever a live tier is unavailable; and a live
-run and an offline `--replay-only` run of the same corpus now produce byte-for-byte identical
-published metrics, verified by an exact field diff.
+Ubuntu/Debian:
 
-**Does not prove:** that the system is accurate enough to be useful yet. 65.0% top-1
-AI-assisted accuracy against an 85% target is a real, failed threshold. It says nothing about
-Gemini's actual accuracy, since no Gemini call occurred in the measured run (no API key was
-configured in this environment). It does not establish general injection resistance, four
-total adversarial cases and one genuine live model path is a small sample. And it is not a
-claim about a real production support system: the corpus's ground truth comes from a fault
-harness driving a real, self-hosted Keycloak instance, not from Okta, Entra, or Ping, and
-`mocks/itsm/` is a stub, not ServiceNow, Jira, or Zendesk.
-
-## Quickstart
-
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+  libxml2-dev libxslt1-dev libxmlsec1-dev libxmlsec1-openssl pkg-config
 ```
-git clone https://github.com/RasheedFarhat/assertion-desk.git && cd assertion-desk
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
-# The reproducibility check: no key, no network, $0.
-make eval-replay
+macOS with Homebrew:
 
-# A five-case CLI walkthrough of the same corpus.
-make demo
+```bash
+brew install libxml2 libxmlsec1 pkg-config
+```
 
-# The server-rendered case card (POST a demo case, then open its /card URL).
+</details>
+
+## How it works
+
+Only Jobs A, B, and C involve a language model. Everything that establishes truth, accepts or rejects claims, chooses a disposition, or authorizes publishing is deterministic or human-controlled.
+
+The pipeline follows one direction:
+
+1. Untrusted customer evidence enters custody, where sensitive material is scanned, redacted, and recorded.
+2. A deterministic verifier runs 20 SAML checks.
+3. Job A extracts context from the defanged narrative. Job B may write an evidence request; Job C may explain failed verifier checks.
+4. The grounding layer rejects unsupported model claims.
+5. Deterministic policy chooses a disposition.
+6. A human reviewer decides whether to publish or escalate.
+
+The architecture enforces six useful invariants:
+
+- Missing evidence can produce `not_verified`, never `verified`.
+- Job C is not invoked unless the verifier produced a failed check.
+- Job C receives check results and extracted narrative context, never raw artifacts.
+- Model prose is not a field in the deterministic disposition policy.
+- A grounding rejection leaves the publishable root cause empty.
+- Fixture replay reproduces the published evaluation without calling a live model.
+
+The implementation details and dependency boundaries are mapped in [Architecture](docs/ARCHITECTURE.md); the three narrow model jobs are justified field by field in [AI Design](docs/AI_DESIGN.md).
+
+## Measured, not marketed
+
+These results come from the committed 2026-08-17 run: 50 executable cases out of 51 corpus entries, with one explicitly documented generator gap.
+
+| Measurement | Result | What it means |
+|---|---:|---|
+| AI-assisted root-cause accuracy | **65.0%** (26/40) | Below the 85% target; the failed threshold is intentionally visible. |
+| Deterministic-only root-cause baseline | **90.0%** (36/40) | The simpler path currently outperforms the model-assisted path by 25 points. |
+| Deterministic disposition accuracy | **94.0%** (47/50) | Three known mismatches, zero unexpected mismatches. |
+| Ambiguous-case refusal | **100%** (2/2) | Withheld evidence did not produce a guessed root cause. |
+| Malformed-input handling | **100%** (2/2) | Both malformed responses became named parse errors, not crashes. |
+| Secret patterns in stored prompts | **0 / 145** | An independent scanner found no JWT, bearer, session-cookie, or private-key pattern. |
+| Grounding rejection rate | **25.0%** (10/40) | One in four model-produced Job C outputs was withheld for violating the grounding rules. |
+| Injection resistance with a live prompt path | **1 / 1** | Positive evidence, but far too small a sample to generalize. |
+
+> [!WARNING]
+> These are numbers for one live pass through the local `qwen3:1.7b` Ollama fallback, not Gemini. The run is reproducible offline, but it is not a repeated-run variance study, a production benchmark, or evidence of general injection resistance. Read the [full measurements](docs/MEASUREMENTS.md) and [committed metrics](eval/runs/20260817T044253Z/metrics.json) before interpreting the headline figures.
+
+The most important result is the uncomfortable one: the model-assisted path is not accurate enough yet. Nine of its 14 misses were the grounding layer declining to publish an answer, and five were a repeatable model bias toward a real but less specific signature check. Those causes are named rather than tuned away.
+
+## Honest project status
+
+| Implemented and exercised | Demo-scoped or partial | Not implemented |
+|---|---|---|
+| Fail-closed HAR/XML/prose custody scanners<br/>20 deterministic SAML checks<br/>Three schema-bound model jobs<br/>Grounding veto and deterministic policy<br/>Case lifecycle and hash-linked trace<br/>Offline fixture replay and CI gates | `POST /cases` wraps frozen corpus cases<br/>SQLite stores Case, TraceEvent, and Approval only<br/>Pipeline detail is cached in process<br/>n8n workflows require manual import and credentials<br/>Gemini is configured as primary but remains unmeasured | Live customer artifact upload<br/>Complete durable evidence/model storage<br/>Customer-reply artifact re-ingestion<br/>Real ITSM integration<br/>Authentication or multi-tenancy<br/>Production WSGI deployment<br/>OIDC, SCIM, or WS-Fed |
+
+> [!IMPORTANT]
+> The web API is a corpus-backed demonstration, not live intake. The custody package is implemented and independently tested, but full artifact-bundle custody is not wired into `POST /cases`; only Job A's narrative passes through custody on the current case path.
+
+Persistence is implemented and tested with SQLite. The SQL was written with portability in mind, but PostgreSQL has not been exercised here. Policy dispositions are `auto`, `review_required`, `escalate`, and `awaiting_evidence`; `blocked` is a case lifecycle state, not a disposition. The current rule table defines `auto` but never emits it.
+
+## Try the web demo
+
+Start the Flask development server:
+
+```bash
 make serve
-
-# Full test suite.
-make test
 ```
 
-## ROI calculator
+In a second terminal, create a case from the frozen `cert_expired` corpus scenario:
 
-`eval/roi.py` (plan section 24) turns a case count and two timed minutes-per-case figures
-into hours and dollars saved per year, with every input printed back before the result. It
-has no default for the two inputs that matter most, `--baseline-minutes` and
-`--review-minutes`, and refuses to run without them. Those numbers can only come from a real
-stopwatch study, which has not been run yet; see [`docs/HUMAN_BASELINE.md`](docs/HUMAN_BASELINE.md)
-for the protocol. Every other input (tenant count, ticket volume, the IdP-misconfiguration
-share, the fully-loaded hourly cost, the measured $0/case inference cost) has a cited default
-and can be overridden:
-
+```bash
+curl -s -X POST http://127.0.0.1:5050/cases \
+  -H 'Content-Type: application/json' \
+  -d '{"corpus_case":"cert_expired"}' | python3 -m json.tool
 ```
+
+Copy the returned `id`, then open:
+
+```text
+http://127.0.0.1:5050/cases/<id>/card
+```
+
+The server-rendered card shows the verification grid, model outputs, reconstructed and hash-verified model-input transcripts, grounding result, policy decision, approvals, and hash-linked trace.
+
+<details>
+<summary><strong>HTTP surface</strong></summary>
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/health` | Process health check. |
+| `POST` | `/cases` | Create and run a frozen-corpus demo case. |
+| `GET` | `/cases` | List cases, optionally filtered by `state`. |
+| `GET` | `/cases/<id>` | Durable case data plus cached pipeline detail when available. |
+| `GET` | `/cases/<id>/card` | Render the human-readable case card. |
+| `POST` | `/cases/<id>/post-for-review` | Move a reasoned case into human review. |
+| `POST` | `/cases/<id>/decision` | Record an approval or escalation decision. |
+| `POST` | `/cases/<id>/publish` | Publish an approved case. |
+
+</details>
+
+<details>
+<summary><strong>Live evaluation and optional services</strong></summary>
+
+Run the live provider cascade instead of fixture-only replay:
+
+```bash
+make eval
+```
+
+`GEMINI_API_KEY` enables Gemini. Without it, the cascade tries the configured Ollama endpoint and then the deterministic renderer. Optional Compose profiles are defined for the application, Keycloak, n8n, and Ollama:
+
+```bash
+docker compose --profile idp up -d
+docker compose --profile local-model up -d
+docker compose --profile core --profile orchestration up -d
+```
+
+Use `make serve` for the tested local HTTP demo. The n8n profile is orchestration scaffolding: its four workflows must be imported and configured manually, and its evidence-reply loop is incomplete. See [n8n/README.md](n8n/README.md).
+
+</details>
+
+<details>
+<summary><strong>Corpus regeneration and ROI</strong></summary>
+
+The committed corpus is sufficient for replay. Regenerating it is an explicit infrastructure task:
+
+```bash
+docker compose --profile idp up -d
+make corpus
+```
+
+The ROI calculator refuses to invent its two most important inputs. Supply measured manual and review times from the [human baseline protocol](docs/HUMAN_BASELINE.md):
+
+```bash
 make roi ARGS="--baseline-minutes 45 --review-minutes 5"
 ```
 
-`make eval` runs the live cascade (Gemini primary if `GEMINI_API_KEY` is set, Ollama fallback,
-deterministic-only last resort) instead of replaying fixtures. Corpus regeneration and the
-optional n8n/Keycloak/local-model services are behind Docker Compose profiles:
+The numbers above are an invocation example, not a measured result.
 
-```
-docker compose --profile idp up -d              # Keycloak, for corpus regeneration only
-docker compose --profile orchestration up -d     # n8n; see n8n/README.md before activating
-docker compose --profile local-model up -d       # Ollama, for the fallback tier
-```
+</details>
 
-The committed corpus and fixtures mean none of the above are required to reproduce the
-numbers in this README.
+## Explore the repository
 
-## Repository layout
+| Area | Responsibility |
+|---|---|
+| [`desk/`](desk/) | Custody, verification, model jobs, grounding, policy, case lifecycle, persistence, and Flask API. |
+| [`harness/`](harness/) | Keycloak/Playwright capture, 23 fault classes, narrative registers, and adversarial overlays. |
+| [`corpus/`](corpus/) | Frozen cases and checksummed `MANIFEST.json` ground truth. |
+| [`fixtures/`](fixtures/) | Write-once model transcripts used for deterministic replay. |
+| [`eval/`](eval/) | Corpus runner, metrics, Markdown reports, committed runs, and ROI calculator. |
+| [`n8n/`](n8n/) | Intake, approval, evidence-chase, and nightly-evaluation workflow exports. |
+| [`tests/`](tests/) | Package-level verification of the core, evaluation, and harness behavior. |
+| [`.github/workflows/`](.github/workflows/) | Test, replay-diff, CodeQL, and repository secret-scanning gates. |
 
-```
-desk/         intake, custody, verify, reason, ground, policy, case, api.py
-harness/      fault injectors + real Keycloak/Playwright artifact capture
-corpus/       frozen, checksummed cases (MANIFEST.json)
-fixtures/     recorded model responses for deterministic replay
-eval/         run.py, metrics.py, report.py, roi.py
-n8n/          four workflow exports (intake, approval, evidence chase, eval report)
-mocks/itsm/   a ticket stub -- explicitly not ServiceNow, Jira, or Zendesk
-docs/         architecture, AI design, threat model, corpus, evaluation, limitations,
-              measurements, and dated phase notes (PHASE0-4)
-tests/        one package per desk/eval/harness module
-.github/      CI (pytest + corpus-verify), eval-replay diff gate, CodeQL, gitleaks
-```
+## Documentation
 
-`docs/` holds seven standalone write-ups plus the phase-by-phase build notes:
-[`ARCHITECTURE.md`](docs/ARCHITECTURE.md) (module map and data flow),
-[`AI_DESIGN.md`](docs/AI_DESIGN.md) (the 10-question justification per model job),
-[`THREAT_MODEL.md`](docs/THREAT_MODEL.md) (T1-T10, each with a measured-or-not status),
-[`CORPUS.md`](docs/CORPUS.md) (the fault catalogue and how ground truth is established),
-[`EVALUATION.md`](docs/EVALUATION.md) (every metric's exact definition),
-[`LIMITATIONS.md`](docs/LIMITATIONS.md) (accuracy, scale, and persistence boundaries stated
-plainly), [`MEASUREMENTS.md`](docs/MEASUREMENTS.md) (the dated run this README's numbers
-come from, and the reproducibility methodology behind `make eval-replay`), and
-[`FAILURE_DEMOS.md`](docs/FAILURE_DEMOS.md) (the four scripted failure demos, grounded in
-real corpus cases). [`HUMAN_BASELINE.md`](docs/HUMAN_BASELINE.md) is the protocol for the
-one measurement this repository cannot produce on its own, a real timed baseline, not yet run.
+| Track | Read next |
+|---|---|
+| Design | [Architecture](docs/ARCHITECTURE.md) · [AI Design](docs/AI_DESIGN.md) · [Threat Model](docs/THREAT_MODEL.md) |
+| Evidence | [Corpus](docs/CORPUS.md) · [Evaluation Framework](docs/EVALUATION.md) · [Measurements](docs/MEASUREMENTS.md) |
+| Boundaries | [Limitations](docs/LIMITATIONS.md) · [Failure Demos](docs/FAILURE_DEMOS.md) · [Human Baseline](docs/HUMAN_BASELINE.md) |
 
-## What this is not
+The dated `PHASE0`–`PHASE4` notes in [`docs/`](docs/) preserve the build history, including bugs found, assumptions rejected, and decisions made along the way.
 
-Single-analyst tool, no auth or user management. Server-rendered HTML, no frontend framework.
-No vector database or RAG, nothing here has a retrieval problem. One model, three calls, no
-agents. Docker Compose, no Kubernetes or cloud. SAML only, no OIDC/SCIM/WS-Fed. Not a claim of
-Entra, Okta, or Ping experience, the harness runs Keycloak and any protocol quirks specific to
-those vendors are, at most, modeled from public documentation and labeled as such.
+## Questions and feedback
+
+Assertion Desk is maintained by [Rasheed Farhat](https://github.com/RasheedFarhat). Open an [issue](https://github.com/RasheedFarhat/assertion-desk/issues) for questions, reproducibility problems, or technical feedback.
+
+No license is currently published, so this repository does not make a reuse or redistribution grant.
