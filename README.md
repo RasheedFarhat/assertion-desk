@@ -1,5 +1,10 @@
 # Assertion Desk
 
+[![CI](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/ci.yml/badge.svg)](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/ci.yml)
+[![Eval Replay](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/eval-replay.yml/badge.svg)](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/eval-replay.yml)
+[![CodeQL](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/codeql.yml/badge.svg)](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/codeql.yml)
+[![gitleaks](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/RasheedFarhat/assertion-desk/actions/workflows/gitleaks.yml)
+
 A support-triage system for broken enterprise SSO that quarantines the customer's live
 credentials before anything reads them, verifies the SAML federation trust chain
 deterministically, and will not let an AI assert a fact its verifier did not independently
@@ -123,7 +128,7 @@ harness driving a real, self-hosted Keycloak instance, not from Okta, Entra, or 
 ## Quickstart
 
 ```
-git clone <this repo> && cd assertion-desk
+git clone https://github.com/RasheedFarhat/assertion-desk.git && cd assertion-desk
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 # The reproducibility check: no key, no network, $0.
