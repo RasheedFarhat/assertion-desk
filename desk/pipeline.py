@@ -1,9 +1,10 @@
 """The real Assertion Desk pipeline: verify -> gap computation -> reason (Job A/B/C)
 -> ground. This is the one place that sequence is implemented. eval/run.py (the
-corpus batch runner) and any future live case orchestrator (desk/case's state
-machine driving desk/api.py, plan section 22 -- not built yet) both call into this
-module rather than each reimplementing the verify-then-reason-then-ground sequence.
-The layering direction is eval/ and desk/api.py depend on desk/pipeline.py, never the
+corpus batch runner) and desk/case/orchestrate.py (the live case orchestrator,
+added in commit 89f15ab -- desk/case's state machine driving desk/api.py, plan
+section 22) both call into this module rather than each reimplementing the
+verify-then-reason-then-ground sequence. The layering direction is eval/,
+desk/api.py, and desk/case/orchestrate.py all depend on desk/pipeline.py, never the
 reverse -- matching the direction eval/metrics.py already established by reading
 desk/policy/rules.py.
 
