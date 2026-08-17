@@ -2,7 +2,7 @@ SHELL := /bin/bash
 PYTHON := .venv/bin/python3
 TIMESTAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
 
-.PHONY: help test verify policy case custody ground reason corpus-verify \
+.PHONY: help test verify policy case custody ground reason pipeline corpus-verify \
         corpus eval eval-replay demo
 
 help:
@@ -14,6 +14,7 @@ help:
 	@echo "  make custody        desk/custody's secret/PII quarantine (tests/custody/)"
 	@echo "  make ground         desk/ground's grounding validator (tests/ground/)"
 	@echo "  make reason         desk/reason's fixture/live/fallback cascade (tests/reason/)"
+	@echo "  make pipeline       desk/pipeline's verify->reason->ground sequence (tests/pipeline/)"
 	@echo "  make corpus-verify  corpus/MANIFEST.json checksums + fault->check label sanity"
 	@echo "  make corpus         regenerate the frozen corpus (needs Keycloak + Playwright)"
 	@echo "  make eval           live corpus run (Gemini, falls back to Ollama/deterministic)"
@@ -48,6 +49,9 @@ ground:
 
 reason:
 	$(PYTHON) -m pytest tests/reason/ -v
+
+pipeline:
+	$(PYTHON) -m pytest tests/pipeline/ -v
 
 # corpus/MANIFEST.json's own checksums plus label sanity (every fault ID maps to a
 # check that can detect it) -- plan's own Verification section item 1, "make
