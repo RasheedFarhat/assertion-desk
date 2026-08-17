@@ -3,7 +3,7 @@ PYTHON := .venv/bin/python3
 TIMESTAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
 
 .PHONY: help test verify policy case custody ground reason pipeline api corpus-verify \
-        corpus eval eval-replay demo serve
+        corpus eval eval-replay demo serve roi
 
 help:
 	@echo "Assertion Desk -- available targets:"
@@ -22,6 +22,8 @@ help:
 	@echo "  make eval-replay    corpus run from fixtures only -- no network, no API key, \$$0"
 	@echo "  make demo           CLI walkthrough of 5 illustrative cases (see target for caveat)"
 	@echo "  make serve          run desk/api.py's dev server on http://127.0.0.1:5050"
+	@echo "  make roi ARGS=...   ROI calculator (plan section 24) -- see docs/HUMAN_BASELINE.md;"
+	@echo "                      refuses to run without --baseline-minutes and --review-minutes"
 	@echo ""
 	@echo "Note (2026-08-17): desk/api.py now exists (POST /cases, case state machine over"
 	@echo "HTTP, and a server-rendered /cases/<id>/card). 'make demo' is still a CLI-only"
@@ -157,3 +159,14 @@ demo:
 #   open http://127.0.0.1:5050/cases/<id>/card
 serve:
 	$(PYTHON) -m desk.api
+
+# --------------------------------------------------------------------------------- #
+# ROI calculator
+# --------------------------------------------------------------------------------- #
+
+# Plan section 24's ROI methodology, made runnable. Two inputs have no default on
+# purpose -- --baseline-minutes and --review-minutes can only come from the 20-case
+# stopwatch study docs/HUMAN_BASELINE.md describes, which has not been run yet.
+# Example: make roi ARGS="--baseline-minutes 45 --review-minutes 5"
+roi:
+	$(PYTHON) -m eval.roi $(ARGS)

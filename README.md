@@ -139,6 +139,21 @@ make serve
 make test
 ```
 
+## ROI calculator
+
+`eval/roi.py` (plan section 24) turns a case count and two timed minutes-per-case figures
+into hours and dollars saved per year, with every input printed back before the result. It
+has no default for the two inputs that matter most, `--baseline-minutes` and
+`--review-minutes`, and refuses to run without them. Those numbers can only come from a real
+stopwatch study, which has not been run yet; see [`docs/HUMAN_BASELINE.md`](docs/HUMAN_BASELINE.md)
+for the protocol. Every other input (tenant count, ticket volume, the IdP-misconfiguration
+share, the fully-loaded hourly cost, the measured $0/case inference cost) has a cited default
+and can be overridden:
+
+```
+make roi ARGS="--baseline-minutes 45 --review-minutes 5"
+```
+
 `make eval` runs the live cascade (Gemini primary if `GEMINI_API_KEY` is set, Ollama fallback,
 deterministic-only last resort) instead of replaying fixtures. Corpus regeneration and the
 optional n8n/Keycloak/local-model services are behind Docker Compose profiles:
@@ -159,7 +174,7 @@ desk/         intake, custody, verify, reason, ground, policy, case, api.py
 harness/      fault injectors + real Keycloak/Playwright artifact capture
 corpus/       frozen, checksummed cases (MANIFEST.json)
 fixtures/     recorded model responses for deterministic replay
-eval/         run.py, metrics.py, report.py
+eval/         run.py, metrics.py, report.py, roi.py
 n8n/          four workflow exports (intake, approval, evidence chase, eval report)
 mocks/itsm/   a ticket stub -- explicitly not ServiceNow, Jira, or Zendesk
 docs/         architecture, AI design, threat model, corpus, evaluation, limitations,
@@ -175,8 +190,11 @@ tests/        one package per desk/eval/harness module
 [`CORPUS.md`](docs/CORPUS.md) (the fault catalogue and how ground truth is established),
 [`EVALUATION.md`](docs/EVALUATION.md) (every metric's exact definition),
 [`LIMITATIONS.md`](docs/LIMITATIONS.md) (accuracy, scale, and persistence boundaries stated
-plainly), and [`MEASUREMENTS.md`](docs/MEASUREMENTS.md) (the dated run this README's numbers
-come from, and the reproducibility methodology behind `make eval-replay`).
+plainly), [`MEASUREMENTS.md`](docs/MEASUREMENTS.md) (the dated run this README's numbers
+come from, and the reproducibility methodology behind `make eval-replay`), and
+[`FAILURE_DEMOS.md`](docs/FAILURE_DEMOS.md) (the four scripted failure demos, grounded in
+real corpus cases). [`HUMAN_BASELINE.md`](docs/HUMAN_BASELINE.md) is the protocol for the
+one measurement this repository cannot produce on its own, a real timed baseline, not yet run.
 
 ## What this is not
 
