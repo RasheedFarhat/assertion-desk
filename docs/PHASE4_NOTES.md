@@ -1,6 +1,11 @@
 # Phase 4 — AI layer, grounding, and first real numbers
 
-**Status: BUILT AND MEASURED, full 50-case corpus, thresholds not yet met.** All three
+**Read "Update, 2026-08-17" below before trusting any specific number in this file's opening
+status block.** The tie-break bug that produced the 25.0%/0% figures below is fixed; current
+numbers (65.0%/90.0%, and a proven-reproducible replay) are in `docs/MEASUREMENTS.md`.
+
+**Status: BUILT AND MEASURED, full 50-case corpus, thresholds not yet met (see the 2026-08-17
+update below for what changed since).** All three
 Gemini-shaped reasoning jobs exist with enforced JSON schemas, `desk/reason/fallback.py`
 implements the fixture-replay-then-live-then-Ollama-then-deterministic cascade end to end,
 `desk/ground/validator.py` rejects every deliberately ungrounded output thrown at it in 12 unit
@@ -38,6 +43,138 @@ that the pipeline runs correctly end to end. The full run against all 50 executa
 case `eval/run.py` excludes, matching Phase 3's own accounting) has since completed; its real
 numbers are in `docs/MEASUREMENTS.md`, not here — this file documents what was built and how the
 smoke run's findings were diagnosed, not the final headline metrics.
+
+## Update, 2026-08-17: tie-break fixed, two reproducibility bugs found and fixed, new numbers
+
+Everything from here down was written 2026-08-16 or earlier and describes the deterministic
+tie-break bug and the run-to-run tier variability as open, unfixed problems. As of 2026-08-17 both
+are fixed, and the full-corpus numbers this file's "Known, named limitations" section points at
+are stale. Current numbers live in `docs/MEASUREMENTS.md`
+(`eval/runs/20260817T044253Z/`, superseding `full_corpus_live_1`). This section is the update;
+the rest of the file is kept as-is below it, in the same spirit as the corrections already
+layered into this file's opening section — the diagnostic reasoning that led here is still worth
+reading, it just no longer describes the current state of the code.
+
+**0. Corpus ground-truth incident: a shared-baseline certificate went stale and contaminated
+signature checks across roughly 30 cases, silently.** `harness/capture/idp-cert.txt` pins the
+certificate the SP trusts. `harness/capture/captured/saml_response.xml` is the one real, untouched
+"nothing is wrong" baseline that every `CONTEXT_MISMATCH` case and every `ARTIFACT_MUTATION` case
+whose mutation doesn't touch the signed content all reuse as their starting bytes
+(`baseline.load_good_saml_response()`). At some point before 2026-08-16, the Keycloak realm's
+signing key was rotated in order to build `cert_rotation`'s own fault artifacts, the shared
+baseline was re-captured *after* that rotation and signed with the new key, and `idp-cert.txt` was
+never refreshed to match. Every case built from the shared baseline — roughly 30 of the corpus's 50
+— then silently failed `SAML-SIG-01`, `SAML-SIG-02`, and `SAML-CERT-02` as an artifact of that
+mismatch, unrelated to whatever fault each case actually existed to test.
+
+This went undetected because `harness/generate.py`'s `verify_and_selftest()` only ever checked that
+each case's own declared `expected_states` were *present* — it never checked that nothing *else*
+unexpectedly failed. A case whose fault has nothing to do with signatures could pick up two
+spurious `SAML-SIG-*` failures and the self-test would still pass, because it never looked outside
+the one check_id list the case declared.
+
+**The fix has two parts.** First, a matched cert/response pair was regenerated so the shared
+baseline is internally consistent again (`harness/capture/idp-cert.txt` and every case's
+`check_results.json`/`context.json` derived from the shared baseline were regenerated as a result —
+this is the source of the corpus-wide diff committed alongside this update). Second,
+`verify_and_selftest()` now runs a second loop after its existing presence check: any check *not*
+named in the case's `expected_states` that comes back `failed` or `review_required` is a hard error,
+unless it is named in a new `KNOWN_BASELINE_NOISE` allowlist. That allowlist currently has exactly
+one entry, `{"SAML-ATTR-01": "review_required"}` — a genuine, real finding (Keycloak's default SAML
+role-list mapper emits one `<Attribute Name="Role">` element per role value instead of one element
+with multiple `<AttributeValue>` children, which `SAML-ATTR-01` correctly flags as a duplicate
+Attribute Name) that belongs in the corpus honestly labeled as baseline behavior, not as a fault
+anyone injected. The allowlist is intentionally an explicit, reviewed list rather than a silent
+skip, so a future contamination of the shared baseline fails loudly again instead of freezing
+silently a second time.
+
+**Consequence for the numbers below.** This fix and the tie-break fix (item 1) both landed before
+the `20260817T044253Z` run and are confounded with each other: item 0 changed the underlying
+`check_results` for about 30 cases before item 1's selection logic ever ran over them. No isolated
+measurement of either fix's individual contribution exists. See `docs/MEASUREMENTS.md`'s "Why this
+run supersedes the old one" for the honest combined framing — the old, superseded
+`full_corpus_live_1` run was generated against the *contaminated* corpus (confirmed directly:
+its `metrics.json` records `"deterministic_actual": "SAML-SIG-01"` for `assertion_expired`, which
+requires the now-corrected spurious `SAML-SIG-01` failure to have been present at generation time).
+
+**0a. A related but separate fix, same corpus regeneration: the S4 adversarial payload's delivery
+mechanism was breaking the signature it was supposed to leave untouched.** `harness/adversarial.py`'s
+S4 payload (`assertion_expired__adv_s4_obfuscated`) originally used `mutations.add_attribute()` to
+hide a base64-encoded instruction inside a new `FriendlyName` value on a real signed
+`saml:Attribute` element. XML canonicalization does not strip added attributes, so that mutation
+changed what the signature covered and broke `SAML-SIG-01` as a mechanical side effect of the
+mutation technique, independent of the payload content — directly contradicting this module's own
+stated invariant (its docstring) that an injection payload must land on a fault's already-correct
+check results. Fixed with a new primitive, `mutations.insert_xml_comment_near()`, which inserts the
+payload as an XML comment immediately after the target element instead of as an attribute on it;
+canonicalization strips comments before the digest is computed, so the signature is untouched. This
+regenerated `assertion_expired__adv_s4_obfuscated`'s `saml_response.xml` and `label.json` alongside
+the rest of the corpus. The S4 grounding-rejection finding written up in `docs/MEASUREMENTS.md`
+(rejected for `uncited_check_reference`, not for engaging with the injected instruction) is read
+directly from the post-fix `20260817T044253Z` run and is accurate as stated.
+
+**1. The deterministic tie-break bug is fixed, and fixed in the place that actually mattered.**
+The original fix attempt patched only `render_deterministic_job_c` (`desk/reason/jobs.py`) and
+left `eval/metrics.py`'s deterministic-only baseline computation with its own separate, still-buggy
+copy of the same rule — the two silently disagreed, and the eval's headline "deterministic-only
+accuracy" number never moved even after the renderer itself was corrected. The real fix extracts a
+single shared function, `pick_root_cause_check_id()`, that both `render_deterministic_job_c` and
+`eval/metrics.py` call. Its rule: prefer a `failed` check over a `review_required` one; among
+`failed` checks, prefer a non-signature check over a `SAML-SIG-*` one (a signature check failing
+alongside something more specific is usually that thing's side effect, not an independent
+finding); within whichever pool wins, use the checks' registration order for a stable pick.
+Combined with item 0 above, this moved the deterministic-only baseline from 12.5% (5/40) to 90.0%
+(36/40) and the AI-assisted number from 25.0% to 65.0% — see `docs/MEASUREMENTS.md` for the full
+breakdown of what the remaining 25-point AI-assisted gap is actually made of (mostly grounding
+correctly declining to guess, plus a specific, repeatable model bias toward citing `SAML-SIG-01`).
+
+**2. The `ReplayMiss` crash on `--replay-only` is fixed.** Before this fix, `--replay-only` raised
+on any case whose live run had legitimately exhausted every configured client and fallen through
+to the deterministic template, because replay mode had no way to distinguish "this prompt was
+never run live" (a genuine gap, should raise) from "this prompt was run live and correctly fell
+through to deterministic" (should not raise). The fix adds a deterministic-fallback marker:
+`FixtureCache.mark_deterministic()` (`desk/reason/fixtures.py`) records, alongside the fixture
+namespace but in a separate `_deterministic/` subdirectory (so nothing that globs `fixtures/*.json`
+expecting a `ModelResponse`-shaped record, like the secret-leakage scanner, mistakes a marker for
+one), that a live run tried every client for an exact prompt and none answered.
+`desk/reason/fallback.py`'s `run_with_fallback()` checks `is_marked_deterministic()` before raising
+`ReplayMiss`, so replay mode can legitimately terminate in the deterministic template exactly as
+the live run did.
+
+**3. Two further reproducibility bugs, found while proving the fixes above actually work, and
+fixed the same day:**
+
+- **`OllamaClient.generate()` (`desk/reason/client.py`) set `temperature: 0` but never passed a
+  `seed`.** Ollama draws a new seed per request when none is pinned, so the identical prompt run
+  twice, even at temperature 0, could legitimately sample two different outputs — this is what the
+  "Run-to-run tier variability" section below was actually observing, not an inherent property of
+  local models that has to be lived with. Fixed by adding `"seed": 0` to the request options.
+- **`FixtureCache.put()` (`desk/reason/fixtures.py`) unconditionally overwrote any existing
+  fixture.** Combined with the seed bug, a later, unrelated live call to a prompt that already had
+  a recorded fixture could silently replace the answer backing a previously published number with
+  a different, unreviewed one — this is the exact mechanism behind the `assertion_expired` /
+  `assertion_expired__adv_s4_obfuscated` fixture-collision finding written up in
+  `docs/MEASUREMENTS.md`. Fixed by making `put()` write-once: the first real response recorded for
+  a given prompt+model+schema key stays authoritative, and a later call to the same key is a no-op.
+
+**Proof, not just a claim.** A fresh full-corpus live run and a fresh full-corpus `--replay-only`
+run were diffed field-by-field across all 56 keys in `metrics.json` and matched exactly except the
+two fields that are supposed to differ (`generated_from`'s timestamp, and `replay_only` itself).
+That is the concrete evidence that `make eval-replay` (plan §23/§36 verification step 5) now
+actually reproduces published numbers offline, which was not true before these fixes. All 135
+tests pass: the 127 already committed (105 from Phases 0-3 + 22 from the original Phase 4 work,
+including `test_fallback.py`'s 8 replay-marker tests for the pre-existing `ReplayMiss` fix) plus 8
+new this session in a new file, `tests/reason/test_jobs.py`, covering `pick_root_cause_check_id()`
+and the tie-break's demotion rule directly (see item 1 above) — confirmed by diffing collected
+test counts with and without this session's changes stashed, not assumed. Zero regressions from
+any of this session's fixes.
+
+**What this changes about the "Known, named limitations" and "Decision" sections below.** The
+tie-break bullet under "Known, named limitations" and the corresponding paragraph in "Decision"
+describe the pre-fix state (25.0%/12.5%, tie-break named as the single fixable cause, not yet
+fixed) and are left as written below rather than edited in place, because they are an accurate
+record of what was true on 2026-08-16. Read them as history. `docs/MEASUREMENTS.md` is the current
+source of truth for headline numbers going forward.
 
 ## Environment constraint: no `GEMINI_API_KEY`, every live call went to local qwen3:1.7b
 
