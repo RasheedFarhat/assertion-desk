@@ -70,7 +70,18 @@ CREATE INDEX IF NOT EXISTS ix_approvals_case_id ON approvals(case_id);
 
 
 def connect(path: str | Path = ":memory:") -> sqlite3.Connection:
-    conn = sqlite3.connect(str(path))
+    # check_same_thread=False: sqlite3's default same-thread check assumes a
+    # single-threaded caller. desk/api.py's Flask dev server (Werkzeug) dispatches
+    # request handling on a thread other than the one that opened this connection --
+    # confirmed empirically running `make serve` and posting a case, which raised
+    # sqlite3.ProgrammingError before this flag was added. Werkzeug's dev server
+    # still runs threaded=False (one request at a time, no concurrency), so this is
+    # safe: it relaxes Python's same-thread guard without introducing the concurrent
+    # access CaseStore does not itself lock against. A future concurrent (threaded or
+    # multi-worker) deployment would need real per-request connections or a
+    # connection pool, not just this flag -- that is out of scope for the dev server
+    # this module currently serves.
+    conn = sqlite3.connect(str(path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)

@@ -2,8 +2,8 @@ SHELL := /bin/bash
 PYTHON := .venv/bin/python3
 TIMESTAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
 
-.PHONY: help test verify policy case custody ground reason pipeline corpus-verify \
-        corpus eval eval-replay demo
+.PHONY: help test verify policy case custody ground reason pipeline api corpus-verify \
+        corpus eval eval-replay demo serve
 
 help:
 	@echo "Assertion Desk -- available targets:"
@@ -15,14 +15,18 @@ help:
 	@echo "  make ground         desk/ground's grounding validator (tests/ground/)"
 	@echo "  make reason         desk/reason's fixture/live/fallback cascade (tests/reason/)"
 	@echo "  make pipeline       desk/pipeline's verify->reason->ground sequence (tests/pipeline/)"
+	@echo "  make api            desk/api.py's Flask endpoints and case card (tests/api/)"
 	@echo "  make corpus-verify  corpus/MANIFEST.json checksums + fault->check label sanity"
 	@echo "  make corpus         regenerate the frozen corpus (needs Keycloak + Playwright)"
 	@echo "  make eval           live corpus run (Gemini, falls back to Ollama/deterministic)"
 	@echo "  make eval-replay    corpus run from fixtures only -- no network, no API key, \$$0"
 	@echo "  make demo           CLI walkthrough of 5 illustrative cases (see target for caveat)"
+	@echo "  make serve          run desk/api.py's dev server on http://127.0.0.1:5050"
 	@echo ""
-	@echo "Note (2026-08-17): desk/api.py and the server-rendered case card (plan section 22)"
-	@echo "do not exist yet. 'make demo' is an honest stand-in, not the real demo experience."
+	@echo "Note (2026-08-17): desk/api.py now exists (POST /cases, case state machine over"
+	@echo "HTTP, and a server-rendered /cases/<id>/card). 'make demo' is still a CLI-only"
+	@echo "walkthrough of the eval corpus, not the case-card experience -- run 'make serve'"
+	@echo "and open a card in a browser for that. n8n (plan section 17) is still not wired."
 
 # --------------------------------------------------------------------------------- #
 # Test suites -- one target per package, matching the doc precedent in
@@ -52,6 +56,9 @@ reason:
 
 pipeline:
 	$(PYTHON) -m pytest tests/pipeline/ -v
+
+api:
+	$(PYTHON) -m pytest tests/api/ -v
 
 # corpus/MANIFEST.json's own checksums plus label sanity (every fault ID maps to a
 # check that can detect it) -- plan's own Verification section item 1, "make
@@ -100,10 +107,13 @@ eval-replay:
 # --------------------------------------------------------------------------------- #
 
 # Honest scope note: the plan's section 13 demo is a 90-second recording of a
-# server-rendered case card (desk/api.py), which has not been built yet (Phase 5/6).
-# This target is a CLI stand-in, not that demo. It runs 5 fixture-covered cases in
-# replay-only mode -- no network, no API key, $0 -- chosen to show one of each
-# outcome shape the eval framework distinguishes:
+# server-rendered case card. desk/api.py exists now (POST /cases through the real
+# case state machine, GET /cases/<id>/card), so that experience is reachable via
+# `make serve` -- but n8n (plan section 17: intake webhook, approval send-and-wait,
+# evidence chase, nightly eval report) is still not wired, so there is no scripted
+# webhook-to-approval walkthrough yet. This target remains a CLI-only stand-in: it
+# runs 5 fixture-covered cases in replay-only mode -- no network, no API key, $0 --
+# chosen to show one of each outcome shape the eval framework distinguishes:
 #   cert_expired                         clean single-fault root cause
 #   duplicate_role_attributes            conflicting evidence -> review_required
 #   withheld_clock                       missing evidence -> precise evidence request
@@ -111,8 +121,8 @@ eval-replay:
 #   cert_rotation__adv_s1_direct_override  injection attempt in an artifact field
 demo:
 	@echo "=================================================================="
-	@echo "Assertion Desk demo (CLI stand-in -- desk/api.py's case card does"
-	@echo "not exist yet; this is not the plan's section 13 demo experience)"
+	@echo "Assertion Desk demo (CLI walkthrough of the eval corpus -- for the"
+	@echo "server-rendered case card, run 'make serve' and open a card's URL)"
 	@echo "=================================================================="
 	$(PYTHON) -m eval.run --replay-only \
 		--case cert_expired \
@@ -128,3 +138,17 @@ demo:
 	@echo "5 cases: clean diagnosis, conflicting evidence, missing evidence,"
 	@echo "negative control, and one injection attempt -- read the report:"
 	@echo "  eval/runs/demo_$(TIMESTAMP)/report.md"
+
+# --------------------------------------------------------------------------------- #
+# Live server
+# --------------------------------------------------------------------------------- #
+
+# desk/api.py's dev server. Port 5050, not 5000 -- macOS's AirPlay Receiver squats on
+# 5000 by default. In-memory SQLite unless DESK_DB_PATH points at a file. This is a
+# Flask dev server, not a production WSGI target, and desk/api.py's own docstring
+# says so; nothing here claims otherwise. POST a case, then open the printed URL:
+#   curl -s -X POST localhost:5050/cases -H 'content-type: application/json' \
+#     -d '{"corpus_case": "cert_expired"}' | python3 -m json.tool
+#   open http://127.0.0.1:5050/cases/<id>/card
+serve:
+	$(PYTHON) -m desk.api
