@@ -1,0 +1,280 @@
+{
+  "name": "Assertion Desk - WF4 Nightly Evaluation Report",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## WF4 - Nightly evaluation report (plan section 17)\n\nRuns `make eval-replay` once a day, parses the resulting metrics.json,\ncompares it against a committed baseline, and notifies on regression.\n\n**Real deployment prerequisite, not covered by this repo's default\n`orchestration` Compose profile.** n8n's Execute Command node runs\nshell commands inside n8n's own process/container -- it does not have\nthis repository, Python, `.venv/bin/python3`, or `make` available to it.\ncompose.yaml's `n8n` service is the stock `docker.n8n.io/nginio/n8n`\nimage with no repo bind-mount, deliberately: mounting the repo plus a\nfull Python/make toolchain into that container, or mounting the Docker\nsocket so it could exec into `app`, would be a real complexity and\nsecurity cost this project is not going to pay to make one nightly\ncron-ish job look more finished than it is.\n\nThe two honest ways to actually run this workflow: (a) run n8n directly\non a host that already has this repo checked out and its `.venv`\nprovisioned, with Execute Command's working directory set to the repo\nroot -- not the containerized `orchestration` profile; or (b) build a\nsmall dedicated runner with its own HTTP endpoint that desk/api.py could\ncall, which does not exist today and is real future work, not something\nfaked here with a nonexistent route. This workflow is written for (a)\nand says so.",
+        "height": 400,
+        "width": 560
+      },
+      "id": "sticky-wf4-header",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-460, -300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "days", "daysInterval": 1, "triggerAtHour": 6, "triggerAtMinute": 0 }
+          ]
+        }
+      },
+      "id": "schedule-daily",
+      "name": "Daily at 06:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-460, 260]
+    },
+    {
+      "parameters": {
+        "command": "={{ 'cd ' + ($env.DESK_REPO_PATH || '/repo') + ' && make eval-replay' }}"
+      },
+      "id": "exec-eval-replay",
+      "name": "Execute: make eval-replay",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [-220, 260],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.exitCode }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "notEquals" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-exec-failed",
+      "name": "IF eval-replay failed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [20, 260]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $env.DESK_ANALYST_ALIAS || 'analyst@example.com' }}",
+        "subject": "Assertion Desk: nightly eval-replay failed to run",
+        "message": "=`make eval-replay` exited nonzero (exit code {{ $json.exitCode }}) during the nightly WF4 run. This usually means a fixture miss (ReplayMiss -- a corpus case whose exact prompt is not yet cached, see eval/run.py's --replay-only contract) or that the deployment prerequisite in this workflow's header sticky note (repo + .venv + make available where n8n runs) isn't satisfied on this host. Raw output follows.\n\n{{ $json.stdout }}\n{{ $json.stderr }}",
+        "options": {}
+      },
+      "id": "gmail-exec-failed",
+      "name": "Notify: eval-replay run failed",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [260, 400],
+      "credentials": {
+        "gmailOAuth2": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "Assertion Desk Gmail (demo account only)" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// The Makefile's own eval-replay target echoes the exact report path it\n// just wrote (Makefile: `@echo \"report: eval/runs/$(TIMESTAMP)-replay/report.md\"`)\n// -- parsing that line is more honest than globbing eval/runs/ for the\n// newest *-replay directory, which would race a concurrent `make eval` run.\nconst stdout = $json.stdout || '';\nconst match = stdout.match(/report:\\s*(\\S+report\\.md)/);\nif (!match) {\n  throw new Error('could not find the \"report: ...\" line make eval-replay is supposed to echo -- see Makefile\\'s eval-replay target');\n}\nconst reportPath = match[1];\nconst metricsPath = reportPath.replace(/report\\.md$/, 'metrics.json');\n\nreturn [{ json: { reportPath, metricsPath } }];"
+      },
+      "id": "code-locate-metrics",
+      "name": "Locate metrics.json from make's own output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [20, 100]
+    },
+    {
+      "parameters": {
+        "command": "={{ 'cat ' + $json.metricsPath }}"
+      },
+      "id": "exec-cat-metrics",
+      "name": "Execute: cat metrics.json",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [260, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { metrics: JSON.parse($json.stdout), metricsPath: $('Locate metrics.json from make\\'s own output').item.json.metricsPath } }];"
+      },
+      "id": "code-parse-metrics",
+      "name": "Parse metrics JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 100]
+    },
+    {
+      "parameters": {
+        "content": "eval/baselines/ exists in the repo but is currently **empty** -- confirmed\n2026-08-17, no baseline metrics file has been committed yet. \"Compare to\ncommitted baseline\" (plan section 17) has nothing to compare against\nuntil Rasheed deliberately commits one; this workflow does not silently\nwrite today's run as tomorrow's baseline, since that would let a real\nregression quietly become the new normal. The Execute Command node below\nis expected to fail (nonzero exit, no such file) until that baseline\nexists, and its IF branch treats that as \"no baseline yet\" rather than\nan error worth paging anyone for.",
+        "height": 200,
+        "width": 340
+      },
+      "id": "sticky-no-baseline",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [740, -160]
+    },
+    {
+      "parameters": {
+        "command": "={{ 'cat ' + ($env.DESK_REPO_PATH || '/repo') + '/eval/baselines/metrics.json' }}"
+      },
+      "id": "exec-cat-baseline",
+      "name": "Execute: cat eval/baselines/metrics.json",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [740, 100],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.exitCode }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "equals" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-baseline-exists",
+      "name": "IF baseline exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [980, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compare only the metrics this plan actually thresholds (section 23):\n// root-cause top-1/top-3, refusal correctness, false-automation rate,\n// grounding-violation catch rate, injection resistance, secret-leakage\n// rate, malformed handling. Anything below its own threshold -- or any\n// tracked metric that regressed vs the baseline by more than a small\n// tolerance -- is a regression worth a human looking at before it ships.\nconst current = $('Parse metrics JSON').item.json.metrics;\nconst baseline = JSON.parse($json.stdout);\n\nconst TOLERANCE = 0.01; // 1 percentage point, matches this project's other exact-vs-rounded conventions: no silent slack\nconst tracked = [\n  'root_cause_accuracy_top1', 'root_cause_accuracy_top3', 'refusal_correctness',\n  'false_automation_rate', 'grounding_violation_catch_rate', 'injection_resistance',\n  'secret_leakage_rate', 'malformed_handling_rate'\n];\n\nconst diffs = [];\nfor (const key of tracked) {\n  if (!(key in current) || !(key in baseline)) continue; // metric not present in one side -- not this node's job to invent it\n  const delta = current[key] - baseline[key];\n  // lower-is-better metrics: a rate going UP is the regression\n  const lowerIsBetter = key.includes('_rate');\n  const regressed = lowerIsBetter ? delta > TOLERANCE : delta < -TOLERANCE;\n  if (Math.abs(delta) > TOLERANCE || regressed) {\n    diffs.push({ key, baseline: baseline[key], current: current[key], delta, regressed });\n  }\n}\n\nconst anyRegression = diffs.some(d => d.regressed);\nreturn [{ json: { anyRegression, diffs, current, baseline } }];"
+      },
+      "id": "code-diff-baseline",
+      "name": "Diff against baseline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1220, 20]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.anyRegression }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-regression",
+      "name": "IF regression",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1460, 20]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $env.DESK_ANALYST_ALIAS || 'analyst@example.com' }}",
+        "subject": "Assertion Desk: nightly eval-replay shows a regression",
+        "message": "=One or more tracked metrics regressed vs the committed baseline (eval/baselines/metrics.json):\n\n{{ JSON.stringify($json.diffs, null, 2) }}\n\nFull current run: {{ $('Locate metrics.json from make\\'s own output').item.json.reportPath }}",
+        "options": {}
+      },
+      "id": "gmail-notify-regression",
+      "name": "Notify: regression detected",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1700, -80],
+      "credentials": {
+        "gmailOAuth2": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "Assertion Desk Gmail (demo account only)" }
+      }
+    },
+    {
+      "parameters": {
+        "content": "\"Append to a metrics history table\" (plan section 17) assumes a table\nthat does not exist -- section 19's own data model has no\nMetricsHistory entity, and desk/api.py has no endpoint for one either.\nRather than invent a database write path nothing else in this repo has,\nthis appends one JSON line per run to a flat file next to eval/runs/,\nwhich needs nothing beyond what Execute Command already has.",
+        "height": 160,
+        "width": 320
+      },
+      "id": "sticky-history-file",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1700, 140]
+    },
+    {
+      "parameters": {
+        "command": "={{ 'echo ' + JSON.stringify(JSON.stringify({ at: new Date().toISOString(), reportPath: $('Locate metrics.json from make\\'s own output').item.json.reportPath, metrics: $('Parse metrics JSON').item.json.metrics })) + ' >> ' + ($env.DESK_REPO_PATH || '/repo') + '/eval/runs/history.jsonl' }}"
+      },
+      "id": "exec-append-history",
+      "name": "Append run to eval/runs/history.jsonl",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1940, 300]
+    },
+    {
+      "parameters": {},
+      "id": "noop-no-baseline",
+      "name": "No baseline yet -- nothing to compare",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1220, 220]
+    }
+  ],
+  "connections": {
+    "Daily at 06:00": {
+      "main": [[{ "node": "Execute: make eval-replay", "type": "main", "index": 0 }]]
+    },
+    "Execute: make eval-replay": {
+      "main": [[{ "node": "IF eval-replay failed", "type": "main", "index": 0 }]]
+    },
+    "IF eval-replay failed": {
+      "main": [
+        [{ "node": "Notify: eval-replay run failed", "type": "main", "index": 0 }],
+        [{ "node": "Locate metrics.json from make's own output", "type": "main", "index": 0 }]
+      ]
+    },
+    "Locate metrics.json from make's own output": {
+      "main": [[{ "node": "Execute: cat metrics.json", "type": "main", "index": 0 }]]
+    },
+    "Execute: cat metrics.json": {
+      "main": [[{ "node": "Parse metrics JSON", "type": "main", "index": 0 }]]
+    },
+    "Parse metrics JSON": {
+      "main": [[{ "node": "Execute: cat eval/baselines/metrics.json", "type": "main", "index": 0 }]]
+    },
+    "Execute: cat eval/baselines/metrics.json": {
+      "main": [[{ "node": "IF baseline exists", "type": "main", "index": 0 }]]
+    },
+    "IF baseline exists": {
+      "main": [
+        [{ "node": "Diff against baseline", "type": "main", "index": 0 }],
+        [{ "node": "No baseline yet -- nothing to compare", "type": "main", "index": 0 }]
+      ]
+    },
+    "No baseline yet -- nothing to compare": {
+      "main": [[{ "node": "Append run to eval/runs/history.jsonl", "type": "main", "index": 0 }]]
+    },
+    "Diff against baseline": {
+      "main": [[{ "node": "IF regression", "type": "main", "index": 0 }]]
+    },
+    "IF regression": {
+      "main": [
+        [{ "node": "Notify: regression detected", "type": "main", "index": 0 }],
+        [{ "node": "Append run to eval/runs/history.jsonl", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notify: regression detected": {
+      "main": [[{ "node": "Append run to eval/runs/history.jsonl", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

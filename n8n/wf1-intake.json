@@ -1,0 +1,242 @@
+{
+  "name": "Assertion Desk - WF1 Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## WF1 - Case intake (plan section 17)\n\nHonesty note (matches desk/api.py's own module docstring): POST /cases currently wraps a **frozen corpus case** under corpus/cases/, not a live customer-supplied artifact bundle -- desk/intake/ (HAR/XML upload parsing) does not exist yet. This webhook body is therefore `{ \"corpus_case\": \"<name>\" }`, not a raw bundle. When desk/intake/ is built, only the HTTP Request node's JSON body needs to change; everything downstream of it (the disposition Switch, the sub-workflow calls) is already correct for either shape.\n\nSee n8n/README.md for what this workflow does and does not do.",
+        "height": 260,
+        "width": 460
+      },
+      "id": "sticky-wf1-header",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-360, -80]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "assertion-desk/intake",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-intake",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-360, 260],
+      "webhookId": "assertion-desk-intake"
+    },
+    {
+      "parameters": {
+        "jsCode": "// HMAC signature verification (plan section 20, T9: \"Unauthenticated n8n\nwebhook\" -> \"HMAC signature required; replay window; rejected calls\nlogged\"). This is deliberately in a Code node, not left unverified --\nsignature checking is trivial logic that belongs in the workflow, unlike\neverything desk/api.py itself does (parsing, crypto, custody, grounding),\nwhich must never move into n8n. See n8n/README.md.\n\nExpects header 'x-desk-signature' = hex HMAC-SHA256 of the raw JSON body\nusing a secret shared with this workflow's own configuration (set via an\nn8n environment variable, DESK_WEBHOOK_SECRET -- never hard-coded here).\n\nn8n's Code node has no built-in crypto module access by default in some\ndeployments; where it is unavailable, verification should be delegated to\na Function node backed by n8n's built-in 'crypto' helper or moved to an\nupstream reverse proxy. That deployment-specific choice is why this node\nis intentionally small and isolated -- swap it without touching anything\ndownstream.\nconst crypto = require('crypto');\n\nconst secret = $env.DESK_WEBHOOK_SECRET;\nif (!secret) {\n  throw new Error('DESK_WEBHOOK_SECRET is not set -- refusing to accept an unverifiable webhook');\n}\n\nconst signatureHeader = $input.item.json.headers['x-desk-signature'];\nif (!signatureHeader) {\n  throw new Error('missing x-desk-signature header');\n}\n\nconst rawBody = JSON.stringify($input.item.json.body);\nconst expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\n\n// Constant-time compare -- a naive === here would leak timing information\n// about how many leading bytes matched.\nconst a = Buffer.from(signatureHeader, 'utf8');\nconst b = Buffer.from(expected, 'utf8');\nif (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {\n  throw new Error('signature mismatch -- rejecting');\n}\n\nreturn [{ json: $input.item.json.body }];"
+      },
+      "id": "code-verify-hmac",
+      "name": "Verify HMAC Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-120, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DESK_API_BASE_URL || 'http://app:5050' }}/cases",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"corpus_case\": $json.corpus_case } }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "http-post-cases",
+      "name": "POST /cases",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [120, 260],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "output": "input",
+        "rules": {
+          "values": [
+            {
+              "outputKey": "review_required",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.disposition }}",
+                    "rightValue": "review_required",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "awaiting_evidence",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.disposition }}",
+                    "rightValue": "awaiting_evidence",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "escalate",
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.disposition }}",
+                    "rightValue": "escalate",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "fallbackOutput": "extra",
+        "options": {}
+      },
+      "id": "switch-disposition",
+      "name": "Switch on disposition",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [360, 260]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": "={{ $env.DESK_WF2_WORKFLOW_ID }}",
+        "workflowInputs": {
+          "value": {
+            "case_id": "={{ $json.id }}"
+          }
+        },
+        "options": { "waitForSubWorkflow": false }
+      },
+      "id": "execute-wf2",
+      "name": "Trigger WF2 (approval gate)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [600, 100]
+    },
+    {
+      "parameters": {
+        "content": "awaiting_evidence needs no action here. WF3 (n8n/wf3-evidence-chase.json) polls `GET /cases?state=awaiting_evidence` on its own 4-hour schedule and will pick this case up -- chaining it from WF1 too would just race WF3's own filter-by-age logic.",
+        "height": 140,
+        "width": 300
+      },
+      "id": "sticky-awaiting-evidence",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $env.DESK_SECURITY_ALIAS || 'security@example.com' }}",
+        "subject": "=Assertion Desk: case {{ $json.id }} escalated ({{ $json.disposition }})",
+        "message": "=Case {{ $json.id }} (correlation_id {{ $json.correlation_id }}) reached disposition '{{ $json.disposition }}' on intake and needs manual attention. Security flags: {{ $json.security_flags.join(', ') || 'none' }}.\n\nCase detail: {{ $env.DESK_API_BASE_URL || 'http://app:5050' }}/cases/{{ $json.id }}\nCase card:   {{ $env.DESK_API_BASE_URL || 'http://app:5050' }}/cases/{{ $json.id }}/card",
+        "options": {}
+      },
+      "id": "gmail-escalate",
+      "name": "Notify security (escalate)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [600, 460],
+      "credentials": {
+        "gmailOAuth2": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "Assertion Desk Gmail (demo account only)" }
+      }
+    },
+    {
+      "parameters": {
+        "content": "'extra' catches any disposition this Switch does not explicitly branch on -- including 'auto', which desk/policy/rules.py's DISPOSITIONS enum defines but its rule table (_decide_base_disposition) structurally never returns (0 of 51 corpus labels use it either, confirmed 2026-08-17 -- see rules.py's own module docstring). This is a real, currently-unreachable branch, kept because the policy vocabulary allows it and a future rule-table version could legitimately emit it; it is not dead code masquerading as coverage. Route here is a NoOp -- nothing to do until that day.",
+        "height": 200,
+        "width": 320
+      },
+      "id": "sticky-extra-branch",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [600, 640]
+    },
+    {
+      "parameters": {},
+      "id": "noop-extra",
+      "name": "Unmatched disposition (auto)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [860, 700]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('POST /cases').item.json }}",
+        "options": { "responseCode": 201 }
+      },
+      "id": "respond-created",
+      "name": "Respond: case created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [860, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": $json.error?.message || \"intake failed\" } }}",
+        "options": { "responseCode": 502 }
+      },
+      "id": "respond-error",
+      "name": "Respond: intake failed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.2,
+      "position": [120, 480]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Verify HMAC Signature", "type": "main", "index": 0 }]]
+    },
+    "Verify HMAC Signature": {
+      "main": [[{ "node": "POST /cases", "type": "main", "index": 0 }]]
+    },
+    "POST /cases": {
+      "main": [
+        [{ "node": "Switch on disposition", "type": "main", "index": 0 }],
+        [{ "node": "Respond: intake failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Switch on disposition": {
+      "main": [
+        [
+          { "node": "Trigger WF2 (approval gate)", "type": "main", "index": 0 },
+          { "node": "Respond: case created", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Respond: case created", "type": "main", "index": 0 }],
+        [
+          { "node": "Notify security (escalate)", "type": "main", "index": 0 },
+          { "node": "Respond: case created", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "Unmatched disposition (auto)", "type": "main", "index": 0 },
+          { "node": "Respond: case created", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

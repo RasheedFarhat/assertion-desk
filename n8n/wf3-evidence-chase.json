@@ -1,0 +1,329 @@
+{
+  "name": "Assertion Desk - WF3 Evidence Chase",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## WF3 - Evidence chase (plan section 17)\n\nPolls `GET /cases?state=awaiting_evidence` every 4 hours and, for cases\nthat have a ready, human-approved evidence-request draft, sends it.\n\n**The biggest honesty note in this whole n8n/ directory.** desk/api.py's\nmodule docstring is explicit that `/cases/<id>/artifacts` -- the endpoint\nthe original plan assumed this workflow would call to re-ingest a chased\ncustomer's reply -- does not exist. desk/case/state.py's own transition\ntable (`CASE_TRANSITIONS[CaseState.AWAITING_EVIDENCE] ==\nfrozenset({CaseState.VERIFYING})`) confirms the *intended* edge is\nawaiting_evidence -> verifying, with a source comment attributing it to\n\"WF3 (plan section 17)\" -- so the destination state is real and deliberate,\nbut nothing in desk/api.py can actually drive a case there today.\n\n**This workflow therefore stops after sending the evidence request.**\nClosing the loop -- receiving the customer's reply, feeding the new\nartifact back in, and transitioning the case to verifying -- is real,\nnamed future work, not something faked here with a nonexistent endpoint\nor a client-side workaround. Until desk/api.py grows that intake path, a\nhuman has to notice the reply and re-run the case manually.\n\nThree more constraints discovered by reading the actual code (not the\noriginal plan draft) shape everything below -- see the sticky notes near\nthe nodes they explain.",
+        "height": 420,
+        "width": 560
+      },
+      "id": "sticky-wf3-header",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-460, -380]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "hours", "hoursInterval": 4 }
+          ]
+        }
+      },
+      "id": "schedule-every-4h",
+      "name": "Every 4 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-460, 260]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases?state=awaiting_evidence' }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "http-get-awaiting",
+      "name": "GET /cases?state=awaiting_evidence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-220, 260]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "cases",
+        "options": {}
+      },
+      "id": "split-out-cases",
+      "name": "Split Out cases[]",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [20, 260]
+    },
+    {
+      "parameters": {
+        "content": "No per-case \"last chased\" timestamp exists anywhere in desk's data\nmodel or API -- confirmed by reading desk/api.py's full JSON contract\n(_case_json / _detail_json). Without one, a workflow that polls every 4\nhours and unconditionally sends would re-email the same case every 4\nhours for as long as it sits in awaiting_evidence.\n\nThe Code node to the right throttles using n8n's own workflow static\ndata (`$getWorkflowStaticData('global')`), keyed by case id, on a 24h\ncadence. This is real n8n functionality, but it is explicitly NOT\nauthoritative state -- it lives only in this n8n instance's data volume\n(ad_n8n_data in compose.yaml) and resets if that volume is lost. desk's\nown database has no record of when a case was last chased.",
+        "height": 240,
+        "width": 340
+      },
+      "id": "sticky-throttle",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [20, -260]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Throttle: only re-chase a given case once every 24h, tracked in this\n// workflow's own static data since desk has no durable \"last chased\"\n// field to read instead (see the sticky note above). Static data is\n// n8n-instance-local, not authoritative -- see the sticky note.\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.lastChasedAt) staticData.lastChasedAt = {};\n\nconst caseId = $json.id;\nconst lastChasedIso = staticData.lastChasedAt[caseId];\nconst now = new Date();\n\nlet shouldChase = true;\nlet hoursSinceLastChase = null;\n\nif (lastChasedIso) {\n  const last = new Date(lastChasedIso);\n  hoursSinceLastChase = (now.getTime() - last.getTime()) / (1000 * 60 * 60);\n  shouldChase = hoursSinceLastChase >= 24;\n}\n\nreturn [{\n  json: {\n    ...$json,\n    shouldChase,\n    hoursSinceLastChase\n  }\n}];"
+      },
+      "id": "code-check-throttle",
+      "name": "Check chase throttle (n8n static data)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 260]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.shouldChase }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-should-chase",
+      "name": "IF not recently chased",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [500, 260]
+    },
+    {
+      "parameters": {},
+      "id": "noop-skip-throttled",
+      "name": "Skip: chased within 24h",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [740, 440]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $json.id }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "http-get-case-detail",
+      "name": "GET /cases/{id} (full detail)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [740, 160]
+    },
+    {
+      "parameters": {
+        "content": "GET /cases/{id}'s own handler comment says `detail` comes from an\n**in-process** cache and is null if \"the process restarted, or the case\npredates this process\" (desk/api.py, get_case). It is not durable\nstorage -- unlike the case's state/disposition, which live in Postgres.\n\nJob B's drafted subject/body and the check gap list both live only\ninside `detail`. If the API process has restarted since this case's\npipeline ran, this workflow has no way to know what evidence to ask\nfor. Rather than guess or send a generic \"please resend everything\"\nmessage, the false branch below escalates to a human. That matches the\nproject's own rule that absence of evidence never yields a confident\nanswer (desk/verify's six-state taxonomy applies the same principle\nhere, one layer up).",
+        "height": 260,
+        "width": 340
+      },
+      "id": "sticky-detail-cache",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [980, -160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ !!($json.detail && $json.detail.jobs && $json.detail.jobs.B && $json.detail.jobs.B.parsed) }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-detail-and-jobb",
+      "name": "IF detail present and Job B drafted",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [980, 160]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $env.DESK_ANALYST_ALIAS || 'analyst@example.com' }}",
+        "subject": "=Assertion Desk: case {{ $json.id }} cannot be auto-chased",
+        "message": "=Case {{ $json.id }} is in awaiting_evidence but this workflow has no usable draft to send -- either the in-process detail cache has no entry for it (likely an API process restart since this case's pipeline ran), or Job B never produced a parsed draft for it. Rather than guess what evidence is missing, this needs a human to open the case, re-derive the gap from the check grid if still available, and either re-run the case or draft the request by hand.\n\nCase detail: {{ $env.DESK_API_BASE_URL || 'http://app:5050' }}/cases/{{ $json.id }}\nCase card:   {{ $env.DESK_API_BASE_URL || 'http://app:5050' }}/cases/{{ $json.id }}/card",
+        "options": {}
+      },
+      "id": "gmail-escalate-no-detail",
+      "name": "Escalate: cannot auto-chase (no detail/draft)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1220, 320],
+      "credentials": {
+        "gmailOAuth2": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "Assertion Desk Gmail (demo account only)" }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Plan section 21 says anything sent to the customer needs approval. WF2\nsatisfies that by transitioning the case into human_review through\n`POST /cases/{id}/post-for-review`. That path is NOT available here --\ndesk/case/state.py's transition table only allows\nawaiting_evidence -> verifying, never awaiting_evidence -> human_review,\nso calling post-for-review on one of these cases would 409 for a real\nreason, not the benign reason WF2 tolerates.\n\nThe send-and-wait node below still puts a human between the draft and\nthe send, matching the spirit of section 21. But unlike WF2's approval,\nthis one is NOT recorded in desk's Approval table -- desk/api.py has no\nendpoint to approve an evidence-request draft outside a human_review\ntransition. The approval record lives only in this n8n workflow's own\nexecution history. Naming that gap here rather than silently accepting\na weaker guarantee than WF2 provides.",
+        "height": 300,
+        "width": 360
+      },
+      "id": "sticky-approval-gap",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1220, -220]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendAndWait",
+        "sendTo": "={{ $env.DESK_ANALYST_ALIAS || 'analyst@example.com' }}",
+        "subject": "=Assertion Desk: approve evidence request for case {{ $json.id }}",
+        "message": "=Subject: {{ $json.detail.jobs.B.parsed.subject }}\n\nBody:\n{{ $json.detail.jobs.B.parsed.body }}\n\nRequested artifacts: {{ ($json.detail.jobs.B.parsed.requested_artifacts || []).join(', ') }}\n\nApproving sends this to the customer contact on file for this case.",
+        "responseType": "approval",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Approve and send",
+            "disapproveLabel": "Reject"
+          }
+        },
+        "limitWaitTime": true,
+        "limitType": "afterTimeInterval",
+        "resumeAmount": 6,
+        "resumeUnit": "hours",
+        "options": {}
+      },
+      "id": "gmail-send-and-wait-analyst",
+      "name": "Analyst approval (send and wait)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1460, 160],
+      "credentials": {
+        "gmailOAuth2": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "Assertion Desk Gmail (demo account only)" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ !!($json.data && $json.data.respondedAt && $json.data.approved) }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-analyst-approved",
+      "name": "IF approved",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1700, 160]
+    },
+    {
+      "parameters": {
+        "content": "desk's Case model (and the plan's own section 19 data model) has no\ncustomer-contact field -- confirmed by grepping the whole repo for\ncustomer_email / contact_email / reporter_email, zero hits. Nowhere\nrecords who at the customer's org to reply to. mocks/itsm/ is also\nstill an empty directory -- the mock ITSM stub the plan names in\nsection 18/26 as the intended publish target hasn't been built, so\nthere is no ticket system to post the reply into either.\n\nPlan section 30 is explicit that Gmail here \"operates against his own\naccount for the demo only,\" never real outbound mail to a real\ncustomer. In keeping with that, the send below targets a configurable\ndemo address, not an address extracted from the case. Wiring a real\ncustomer-contact field into desk's data model and a real ITSM publish\npath are both genuine future work, not faked here.",
+        "height": 280,
+        "width": 360
+      },
+      "id": "sticky-customer-contact",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1940, -220]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $env.DESK_CUSTOMER_CONTACT_DEMO || 'demo-customer@example.com' }}",
+        "subject": "={{ $json.detail.jobs.B.parsed.subject }}",
+        "message": "={{ $json.detail.jobs.B.parsed.body }}",
+        "options": {}
+      },
+      "id": "gmail-send-customer",
+      "name": "Send evidence request (demo address)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1940, 60],
+      "credentials": {
+        "gmailOAuth2": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "Assertion Desk Gmail (demo account only)" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Record the chase so the throttle node upstream skips this case for the\n// next 24h. This is n8n-local bookkeeping only -- see the throttle sticky\n// note near the start of this workflow.\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.lastChasedAt) staticData.lastChasedAt = {};\nstaticData.lastChasedAt[$json.id] = new Date().toISOString();\nreturn [$input.item];"
+      },
+      "id": "code-record-chased",
+      "name": "Record chased timestamp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2180, 60]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $env.DESK_ANALYST_ALIAS || 'analyst@example.com' }}",
+        "subject": "=Assertion Desk: evidence request for case {{ $json.id }} not sent this cycle",
+        "message": "=The drafted evidence request for case {{ $json.id }} was rejected or the 6-hour approval window timed out with no response. Nothing was sent to the customer. This case remains in awaiting_evidence and will be reconsidered on the next 4-hour poll (no chase timestamp was recorded, so it is not throttled).\n\nCase card: {{ $env.DESK_API_BASE_URL || 'http://app:5050' }}/cases/{{ $json.id }}/card",
+        "options": {}
+      },
+      "id": "gmail-notify-not-sent",
+      "name": "Notify: not sent this cycle",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1940, 300],
+      "credentials": {
+        "gmailOAuth2": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "Assertion Desk Gmail (demo account only)" }
+      }
+    }
+  ],
+  "connections": {
+    "Every 4 hours": {
+      "main": [[{ "node": "GET /cases?state=awaiting_evidence", "type": "main", "index": 0 }]]
+    },
+    "GET /cases?state=awaiting_evidence": {
+      "main": [[{ "node": "Split Out cases[]", "type": "main", "index": 0 }]]
+    },
+    "Split Out cases[]": {
+      "main": [[{ "node": "Check chase throttle (n8n static data)", "type": "main", "index": 0 }]]
+    },
+    "Check chase throttle (n8n static data)": {
+      "main": [[{ "node": "IF not recently chased", "type": "main", "index": 0 }]]
+    },
+    "IF not recently chased": {
+      "main": [
+        [{ "node": "GET /cases/{id} (full detail)", "type": "main", "index": 0 }],
+        [{ "node": "Skip: chased within 24h", "type": "main", "index": 0 }]
+      ]
+    },
+    "GET /cases/{id} (full detail)": {
+      "main": [[{ "node": "IF detail present and Job B drafted", "type": "main", "index": 0 }]]
+    },
+    "IF detail present and Job B drafted": {
+      "main": [
+        [{ "node": "Analyst approval (send and wait)", "type": "main", "index": 0 }],
+        [{ "node": "Escalate: cannot auto-chase (no detail/draft)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Analyst approval (send and wait)": {
+      "main": [[{ "node": "IF approved", "type": "main", "index": 0 }]]
+    },
+    "IF approved": {
+      "main": [
+        [{ "node": "Send evidence request (demo address)", "type": "main", "index": 0 }],
+        [{ "node": "Notify: not sent this cycle", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send evidence request (demo address)": {
+      "main": [[{ "node": "Record chased timestamp", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

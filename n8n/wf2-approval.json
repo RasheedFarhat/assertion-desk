@@ -1,0 +1,258 @@
+{
+  "name": "Assertion Desk - WF2 Approval Gate",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## WF2 - Human approval gate (plan section 17)\n\nTriggered by WF1 (Execute Workflow) with a single input, `case_id`. Can also\nbe triggered directly (Execute Workflow Trigger supports manual runs) to\nre-send an approval request for a case that is already sitting in\nhuman_review -- useful after a 24h timeout re-notify.\n\nBefore requesting approval this workflow calls `POST\n/cases/{id}/post-for-review`. Two real states land here with the same\ndisposition (see tests/api/test_api.py: negative_control reaches\nhuman_review directly; cert_expired reaches reasoned and needs an explicit\npost-for-review first) -- rather than branch on which one, this workflow\nalways calls post-for-review and treats a 409 (already in human_review,\nan illegal no-op transition) as success, not failure. See the IF node\nbelow.\n\ndesk/api.py never auto-approves. If Gmail's Send and Wait times out with no\nresponse, this workflow escalates and re-notifies -- it does not treat\nsilence as approval. (n8n issue #25311 documented a Teams send-and-wait\nauto-approving without interaction; Gmail is used here specifically to\navoid that class of bug, and the `respondedAt` field from the wait node's\noutput is asserted present before any decision is accepted -- see the Code\nnode near the end.)",
+        "height": 320,
+        "width": 480
+      },
+      "id": "sticky-wf2-header",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-460, -140]
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "case_id", "type": "string" }
+          ]
+        }
+      },
+      "id": "trigger-wf2",
+      "name": "When called by WF1",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-460, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $json.case_id + '/post-for-review' }}",
+        "options": { "timeout": 15000 },
+        "neverError": true
+      },
+      "id": "http-post-for-review",
+      "name": "POST /cases/{id}/post-for-review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-220, 260]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $response.statusCode }}",
+              "rightValue": 409,
+              "operator": { "type": "number", "operation": "notEquals" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-transition-ok",
+      "name": "IF not-409 (either transitioned or already illegal-for-a-real-reason)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [20, 260]
+    },
+    {
+      "parameters": {
+        "content": "200 -- transitioned reasoned -> human_review, proceed.\n409 with 'already in human_review' -- this workflow's own\npost-for-review call is a defensive no-op for cases like\nnegative_control that land in human_review directly; proceed anyway.\nAny other 409 (e.g. called on a case still in verifying) is a real\nbug in what triggered this workflow -- surfaced via the false branch\nbelow rather than silently swallowed.",
+        "height": 180,
+        "width": 320
+      },
+      "id": "sticky-409-note",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [20, 60]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $('When called by WF1').item.json.case_id }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "http-get-case",
+      "name": "GET /cases/{id}",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Belt-and-suspenders check for the one 409 shape this workflow accepts as\n// benign: the case must actually already be in human_review. Any other\n// state here means post-for-review 409'd for a real reason (e.g. the case\n// is still 'verifying' or already terminal) and this workflow should not\n// paper over that by proceeding to request an approval that cannot be\n// recorded -- desk/api.py's POST /cases/{id}/decision itself would 409\n// again downstream, but failing loudly here is cheaper to debug.\nconst state = $input.item.json.state;\nif (state !== 'human_review') {\n  throw new Error(`post-for-review 409'd and case ${$input.item.json.id} is in state '${state}', not human_review -- refusing to request approval`);\n}\nreturn [$input.item];"
+      },
+      "id": "code-assert-human-review",
+      "name": "Assert case is human_review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 380]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $json.id + '/card' }}",
+        "options": { "timeout": 15000, "response": { "response": { "responseFormat": "text" } } }
+      },
+      "id": "http-get-card",
+      "name": "GET /cases/{id}/card",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 260]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendAndWait",
+        "sendTo": "={{ $env.DESK_ANALYST_ALIAS || 'analyst@example.com' }}",
+        "subject": "=Assertion Desk: case {{ $('GET /cases/{id}/card').item.json.id }} needs review",
+        "message": "={{ $json.data }}",
+        "responseType": "approval",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Approve",
+            "disapproveLabel": "Reject"
+          }
+        },
+        "limitWaitTime": true,
+        "limitType": "afterTimeInterval",
+        "resumeAmount": 24,
+        "resumeUnit": "hours",
+        "options": {}
+      },
+      "id": "gmail-send-and-wait",
+      "name": "Send and Wait for Response",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [740, 260],
+      "credentials": {
+        "gmailOAuth2": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "Assertion Desk Gmail (demo account only)" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data?.respondedAt }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-responded",
+      "name": "IF respondedAt present",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [980, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $('GET /cases/{id}/card').item.json.id + '/decision' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"approver\": $json.data.approvedBy || $env.DESK_ANALYST_ALIAS, \"decision\": $json.data.approved ? \"approved\" : \"escalated\", \"channel\": \"gmail\", \"override_reason\": $json.data.approved ? undefined : ($json.data.comment || \"rejected via Gmail send-and-wait, no comment supplied\") } }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "http-post-decision",
+      "name": "POST /cases/{id}/decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1220, 160]
+    },
+    {
+      "parameters": {
+        "content": "override_reason is only sent on reject/escalate -- desk/api.py's own\ntest suite (test_decision_escalated_requires_override_reason) makes it\nmandatory exactly there and rejects it as a 400 if missing on an\napproved decision path is a non-issue since the field is simply absent.\nThis is the free-text override reason plan section 17 calls out as\nfeeding the human-override-rate metric.",
+        "height": 160,
+        "width": 320
+      },
+      "id": "sticky-override-reason",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1220, -40]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $env.DESK_SECURITY_ALIAS || 'security@example.com' }}",
+        "subject": "=Assertion Desk: case {{ $('GET /cases/{id}/card').item.json.id }} approval timed out (24h)",
+        "message": "=No response within 24 hours to the review request for case {{ $('GET /cases/{id}/card').item.json.id }}. desk/api.py never auto-approves on timeout (plan section 21) -- this case is being escalated and re-notified rather than silently published.\n\nCase detail: {{ $env.DESK_API_BASE_URL || 'http://app:5050' }}/cases/{{ $('GET /cases/{id}/card').item.json.id }}",
+        "options": {}
+      },
+      "id": "gmail-timeout-escalate",
+      "name": "Escalate on timeout / no respondedAt",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1220, 420],
+      "credentials": {
+        "gmailOAuth2": { "id": "PLACEHOLDER_CREDENTIAL_ID", "name": "Assertion Desk Gmail (demo account only)" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $('GET /cases/{id}/card').item.json.id + '/decision' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"approver\": \"system:timeout\", \"decision\": \"escalated\", \"channel\": \"gmail\", \"override_reason\": \"no analyst response within 24h -- auto-escalated, not auto-approved\" } }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "http-post-decision-timeout",
+      "name": "POST /cases/{id}/decision (timeout escalate)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1460, 420]
+    }
+  ],
+  "connections": {
+    "When called by WF1": {
+      "main": [[{ "node": "POST /cases/{id}/post-for-review", "type": "main", "index": 0 }]]
+    },
+    "POST /cases/{id}/post-for-review": {
+      "main": [[{ "node": "IF not-409 (either transitioned or already illegal-for-a-real-reason)", "type": "main", "index": 0 }]]
+    },
+    "IF not-409 (either transitioned or already illegal-for-a-real-reason)": {
+      "main": [
+        [{ "node": "GET /cases/{id}", "type": "main", "index": 0 }],
+        [{ "node": "Assert case is human_review", "type": "main", "index": 0 }]
+      ]
+    },
+    "GET /cases/{id}": {
+      "main": [[{ "node": "GET /cases/{id}/card", "type": "main", "index": 0 }]]
+    },
+    "Assert case is human_review": {
+      "main": [[{ "node": "GET /cases/{id}/card", "type": "main", "index": 0 }]]
+    },
+    "GET /cases/{id}/card": {
+      "main": [[{ "node": "Send and Wait for Response", "type": "main", "index": 0 }]]
+    },
+    "Send and Wait for Response": {
+      "main": [[{ "node": "IF respondedAt present", "type": "main", "index": 0 }]]
+    },
+    "IF respondedAt present": {
+      "main": [
+        [{ "node": "POST /cases/{id}/decision", "type": "main", "index": 0 }],
+        [{ "node": "Escalate on timeout / no respondedAt", "type": "main", "index": 0 }]
+      ]
+    },
+    "Escalate on timeout / no respondedAt": {
+      "main": [[{ "node": "POST /cases/{id}/decision (timeout escalate)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
