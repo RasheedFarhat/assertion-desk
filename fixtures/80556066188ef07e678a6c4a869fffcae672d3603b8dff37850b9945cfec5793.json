@@ -1,0 +1,13 @@
+{
+  "input_tokens": 266,
+  "key": "80556066188ef07e678a6c4a869fffcae672d3603b8dff37850b9945cfec5793",
+  "latency_ms": 17930.27679203078,
+  "model_id": "qwen3:1.7b",
+  "output_tokens": 159,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='unknown', onset='null', already_tried=['re-typed the URL twice to be sure'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "b72049478afc47fceb84f07094e0f9d724367e197652c429d5963f213d693b67",
+  "provider": "ollama",
+  "recorded_at": 1786896912.673152,
+  "schema_version": "v1",
+  "text": "{\n\n  \"subject\": \"Verification Gap in SAML-INRESP-01 and SAML-INRESP-02\",\n\n  \"body\": \"Please verify the following artifacts: SAML-INRESP-01 and SAML-INRESP-02. The system cannot verify the presence of an expected InResponseTo value in the SP's response. This is critical for ensuring proper SAML authentication flow validation. The artifacts are already tried by re-typing the URL twice to be sure, but the verification gap remains unresolved. Please confirm the presence of the expected InResponseTo value in the SP's response as per the defined artifact kinds.\",\n  \"requested_artifacts\": [\n    \"saml_response\",\n    \"sp_request_log\"\n  ]\n}"
+}

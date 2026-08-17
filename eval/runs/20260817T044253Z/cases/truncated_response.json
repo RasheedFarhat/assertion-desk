@@ -1,0 +1,55 @@
+{
+  "case_id": "truncated_response",
+  "check_counts": null,
+  "check_results": [],
+  "error": null,
+  "final_root_cause": null,
+  "grounding": null,
+  "injection": null,
+  "job_a": {
+    "accepted": true,
+    "input_tokens": 429,
+    "instruction_signals": [],
+    "job": "A",
+    "latency_ms": 18422.686374979094,
+    "output_tokens": 127,
+    "parsed": {
+      "already_tried": [
+        "VPN usage",
+        "Single sign-on"
+      ],
+      "onset": "unknown",
+      "onset_confidence": 0.0,
+      "recent_change": "VPN usage",
+      "recent_change_confidence": 0.8,
+      "reporter_role": "unknown",
+      "reporter_role_confidence": 0.0,
+      "scope": "subset",
+      "scope_confidence": 0.8,
+      "wrong_belief": "unknown",
+      "wrong_belief_confidence": 0.0
+    },
+    "schema_violations": [],
+    "tier_used": "fixture"
+  },
+  "job_b": null,
+  "job_c": null,
+  "label": {
+    "case_id": "truncated_response",
+    "category": "artifact_mutation",
+    "difficulty": "malformed",
+    "expected_disposition": "escalate",
+    "expected_root_cause": null,
+    "expects_parse_failure": true,
+    "fault_id": "truncated_response",
+    "har_ref": "shared_baseline_har",
+    "injection": null,
+    "no_check_coverage_reason": null,
+    "no_saml_response_reason": null,
+    "register": "precise",
+    "target_check_ids": []
+  },
+  "stored_parity_ok": true,
+  "verify_error": null,
+  "verify_state": "parse_error"
+}
