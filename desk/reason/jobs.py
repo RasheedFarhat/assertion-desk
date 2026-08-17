@@ -41,6 +41,7 @@ __all__ = [
     "render_deterministic_job_a",
     "render_deterministic_job_b",
     "render_deterministic_job_c",
+    "pick_root_cause_check_id",
     "ReplayMiss",
 ]
 
@@ -104,21 +105,75 @@ def render_deterministic_job_b(gaps: list[Gap]) -> dict[str, Any]:
     }
 
 
+def _is_signature_check(check_id: str) -> bool:
+    """SAML-SIG-* verifies the response/assertion's XML-DSig signature over its
+    canonicalized content. That content includes the cert reference, NameID, Conditions,
+    and (in some profiles) the attribute statement -- so tampering with any of those
+    breaks the signature check as a side effect, independent of whatever check exists to
+    name the tampering directly. A signature failure is therefore usually a downstream
+    symptom, not the cause: see cert_rotation (SIG-01/02 fail alongside the more specific
+    CERT-02), missing_nameid and unsupported_nameid_format (alongside NAMEID-01/02), and
+    encrypted_assertion (alongside ENC-01) in corpus/MANIFEST.json's target_check_ids,
+    where the first-listed, more specific check is always the true injected fault. The
+    one case where SIG-01 legitimately *is* the root cause is broken_signature, where no
+    other check fails at all -- which is exactly what the "only among FAILED checks"
+    scoping below preserves."""
+    return check_id.startswith("SAML-SIG-")
+
+
+def pick_root_cause_check_id(rows: list[tuple[str, str]]) -> str | None:
+    """The single tie-break rule for "which check is the root cause", shared by
+    render_deterministic_job_c below AND eval/metrics.py's deterministic-only
+    baseline -- there must be exactly one implementation of this rule, not two kept in
+    sync by hand. (A prior version of this fix patched only render_deterministic_job_c
+    and left eval/metrics.py with its own frozen copy of the old buggy rule; the two
+    silently disagreed and the eval's headline "deterministic-only accuracy" number
+    never moved. Extracting this function is the fix for that class of drift, not just
+    for the one instance of it.)
+
+    rows: (check_id, assurance_value) pairs for every check result, in run.results /
+    check_results list order -- assurance_value is the six-state string
+    ("failed", "review_required", "verified", ...), so this function works identically
+    whether the caller has CheckResult objects (render_deterministic_job_c, via
+    Assurance.value) or persisted dicts (eval/metrics.py, via check_results[i]["assurance"]).
+
+    Selection, in order: prefer a "failed" row over a "review_required" one; among
+    "failed" rows, prefer a non-signature check over a SAML-SIG-* one, because a
+    signature check failing alongside something more specific is usually that thing's
+    side effect rather than an independent finding (see _is_signature_check); within
+    whichever pool wins, use list order (ALL_CHECKS's registration order) for a
+    stable, reproducible pick. This demotion is a general SAML-protocol rule, not a
+    lookup against any case's expected label -- this function never reads corpus/eval
+    data. Returns None if no row is "failed" or "review_required"."""
+    notable = [(cid, a) for cid, a in rows if a in ("failed", "review_required")]
+    if not notable:
+        return None
+    failed = [(cid, a) for cid, a in notable if a == "failed"]
+    if failed:
+        non_signature_failed = [(cid, a) for cid, a in failed if not _is_signature_check(cid)]
+        pool = non_signature_failed or failed
+    else:
+        pool = notable
+    return pool[0][0]
+
+
 def render_deterministic_job_c(run: VerificationRun) -> dict[str, Any]:
     """Renders every FAILED/REVIEW_REQUIRED row as a claim -- deliberately not just the
     single "root cause" -- so a multi-finding case (see duplicate_role_attributes,
     which carries an independently REVIEW_REQUIRED SAML-ATTR-01 alongside FAILED
     SIG/CERT checks) still surfaces every real finding in deterministic-only mode, not
-    just the one this template happens to pick as root_cause. root_cause prefers a
-    FAILED row over a REVIEW_REQUIRED one, and within a tier uses ALL_CHECKS's list
-    order (the order run.results was built in) for a stable, reproducible pick."""
+    just the one this template happens to pick as root_cause.
+
+    root_cause selection is pick_root_cause_check_id(), shared with eval/metrics.py's
+    deterministic-only baseline so the two can never drift apart again."""
     notable = [r for r in run.results if r.assurance in (Assurance.FAILED, Assurance.REVIEW_REQUIRED)]
     if not notable:
         raise ValueError(
             "render_deterministic_job_c requires at least one FAILED or REVIEW_REQUIRED "
             "check; callers must gate on run.has_any_failed() before invoking Job C"
         )
-    root = next((r for r in notable if r.assurance == Assurance.FAILED), notable[0])
+    root_check_id = pick_root_cause_check_id([(r.check_id, r.assurance.value) for r in run.results])
+    root = next(r for r in notable if r.check_id == root_check_id)
     claims = [
         {"text": f"{r.check_id}: {r.reason}", "check_id": r.check_id, "asserted_state": r.assurance.value}
         for r in notable

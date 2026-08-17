@@ -17,11 +17,14 @@ corpus-shape half of this story):
   docstring for the same finding surfacing independently at the grounding layer.
 
   Root-cause accuracy is reported for BOTH the AI-assisted pipeline (final_root_cause,
-  after grounding) and a deterministic-only baseline, computed by replicating
-  render_deterministic_job_c's tie-break rule (desk/reason/jobs.py) directly over the
-  persisted check_results -- not by re-running the corpus with every client disabled.
-  This is the plan's "what does AI add" comparison (plan section 23), computed for
-  free from a single run.
+  after grounding) and a deterministic-only baseline, computed by calling
+  desk/reason/jobs.py's pick_root_cause_check_id() directly over the persisted
+  check_results -- not by re-running the corpus with every client disabled. This is
+  the plan's "what does AI add" comparison (plan section 23), computed for free from a
+  single run. (This module used to carry its own hand-copied reimplementation of the
+  tie-break rule, which silently fell out of sync with a fix later made only in
+  desk/reason/jobs.py -- see pick_root_cause_check_id's docstring. Importing the same
+  function both places is the fix.)
 
   This implementation's Job C schema produces a single root_cause, not a ranked list --
   so there is no top-3 variant of root-cause accuracy here. That is an intentional
@@ -64,6 +67,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from desk.reason.jobs import pick_root_cause_check_id
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FIXTURES_DIR = REPO_ROOT / "fixtures"
 
@@ -77,23 +82,19 @@ def load_records(records_path: Path) -> dict:
 
 
 # --------------------------------------------------------------------------------- #
-# Shared helper: the deterministic-only root-cause pick, replicated from
-# desk/reason/jobs.py's render_deterministic_job_c rather than reconstructed via a
-# VerificationRun object -- eval/run.py already persists check_results in
-# run.results order, so the same trivial rule over the same data gives the identical
-# answer the real template would have rendered.
+# Shared helper: the deterministic-only root-cause pick. Calls
+# desk/reason/jobs.py's pick_root_cause_check_id() directly (the exact function
+# render_deterministic_job_c uses) rather than reconstructing a VerificationRun object
+# -- eval/run.py already persists check_results in run.results order, so passing that
+# same (check_id, assurance) sequence gives the identical answer the real template
+# would have rendered, with no second implementation of the tie-break rule to drift.
 # --------------------------------------------------------------------------------- #
 
 
 def deterministic_root_cause(check_results: list[dict] | None) -> str | None:
     if not check_results:
         return None
-    notable = [r for r in check_results if r["assurance"] in ("failed", "review_required")]
-    if not notable:
-        return None
-    failed = [r for r in notable if r["assurance"] == "failed"]
-    root = failed[0] if failed else notable[0]
-    return root["check_id"]
+    return pick_root_cause_check_id([(r["check_id"], r["assurance"]) for r in check_results])
 
 
 # --------------------------------------------------------------------------------- #
