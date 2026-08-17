@@ -100,9 +100,43 @@ def render_report(metrics: dict) -> str:
     )
     w("")
     w(
-        "Scored on `final_root_cause is None` only. `desk/policy` (the disposition "
-        "layer, e.g. `awaiting_evidence`) is not built as of Phase 4, so there is no "
-        "computed disposition to check the label's `expected_disposition` against yet."
+        "Scored on `final_root_cause is None` only. See the disposition-accuracy "
+        "section below for the broader, now-possible check against every case's "
+        "`expected_disposition`."
+    )
+    w("")
+
+    # ---------------------------------------------------------------- #
+    w("## Disposition accuracy (desk/policy, all runnable cases)")
+    da = metrics["disposition_accuracy"]
+    w("")
+    w(
+        f"n = {da['n']}. `desk/policy/rules.py`'s computed disposition compared against "
+        f"each case's `expected_disposition`. **{_pct(da['accuracy'])}** ({da['correct']}/{da['n']}) "
+        f"matched exactly."
+    )
+    w("")
+    if da["known_mismatches"]:
+        w(
+            "**Known, named mismatch(es)** -- accepted, not hidden, not excluded from "
+            "the count above:"
+        )
+        for row in da["known_mismatches"]:
+            reason = da["known_mismatch_reasons"].get(row["case_id"], "")
+            w(
+                f"- `{row['case_id']}`: expected `{row['expected']}`, computed "
+                f"`{row['actual']}`. {reason}"
+            )
+        w("")
+    if da["unexpected_mismatches"]:
+        w("**Unexpected mismatch(es) -- not on the known list, worth investigating:**")
+        for row in da["unexpected_mismatches"]:
+            w(f"- `{row['case_id']}`: expected `{row['expected']}`, computed `{row['actual']}`.")
+        w("")
+    w(
+        "`desk/policy/rules.py` reads only real, production-realistic pipeline "
+        "signals -- never a corpus label field -- so this number is an honest measure "
+        "of the rule table, not a fit to the labels."
     )
     w("")
 

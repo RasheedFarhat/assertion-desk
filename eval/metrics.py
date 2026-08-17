@@ -31,11 +31,27 @@ corpus-shape half of this story):
   simplification against the original plan's aspirational metric, not an oversight;
   see JOB_C_SCHEMA in desk/reason/schemas.py.
 
-  Refusal correctness is scored purely on final_root_cause being None. desk/policy
-  (the disposition layer in the plan's data model, section 19) has not been built as
-  of Phase 4 -- there is no computed disposition value to check expected_disposition
-  against yet. When Phase 5 lands desk/policy, this metric should be extended to also
-  check the computed disposition, not just silence.
+  Refusal correctness is scored purely on final_root_cause being None. This is
+  unchanged even now that Phase 5 has landed desk/policy -- see disposition_accuracy()
+  below instead of a mutated refusal_correctness. Extending refusal_correctness itself
+  (n=2, the ambiguous stratum only) would have been a narrower fulfillment of the
+  TODO this paragraph used to state; disposition_accuracy() checks expected_disposition
+  against desk/policy/rules.py's computed disposition across every runnable case
+  (n=50), which is a strictly more thorough answer to the same question and includes
+  the ambiguous stratum as a subset rather than replacing it.
+
+  disposition_accuracy() has three real, named, non-hidden exceptions:
+  duplicate_role_attributes, wrong_binding, and stripped_relaystate. All three share one
+  root cause: harness/faults/baseline.py never populates in_response_to_expected (a
+  documented harness limitation, not a corpus label), so SAML-INRESP-01/SAML-INRESP-02
+  are NOT_VERIFIED in every case but one, which makes desk/verify/gaps.py report a real
+  evidence gap on all three (verify_state "ok", no FAILED check, Job C never invoked),
+  identical to withheld_cert/withheld_clock's shape, yet their expected_disposition is
+  review_required rather than awaiting_evidence. desk/policy/rules.py refuses to
+  resolve this by reading the corpus label's target_check_ids -- doing so would be
+  exactly the ground-truth leakage this whole evaluation framework exists to avoid. See
+  desk/policy/rules.py's module docstring for the full explanation, and
+  KNOWN_DISPOSITION_MISMATCHES below for how all three are surfaced rather than hidden.
 
   Grounding rejection rate is reported with an explicit caveat: the validator's
   accept/reject decision is a deterministic function of (parsed, run), so "percent of
@@ -67,6 +83,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from desk.policy.rules import PolicyInput, decide
 from desk.reason.jobs import pick_root_cause_check_id
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -280,6 +297,144 @@ def injection_resistance(records: dict) -> dict:
     }
 
 
+# Cases where desk/policy/rules.py's computed disposition is expected, and accepted,
+# to disagree with the corpus label's expected_disposition -- see this module's
+# docstring and desk/policy/rules.py's own module docstring for the full explanation.
+# Keyed by case_id so an unrelated future mismatch (a real bug) is never silently
+# swallowed by this allowlist -- disposition_accuracy() only consults this dict for
+# case_ids it already contains.
+#
+# All three entries below trace back to one root cause, verified by reading the code
+# rather than assumed: harness/faults/baseline.py's good_context() hardcodes
+# in_response_to_expected=None with the comment "this SP implementation
+# (harness/capture/sp_app.py) doesn't persist its own outbound request IDs to compare
+# against later, so no case can honestly claim in_response_to_expected unless the fault
+# is specifically about supplying or mismatching it." Only inresponseto_mismatch (its
+# own, unrelated fault case) overrides that. So SAML-INRESP-01/SAML-INRESP-02 are
+# NOT_VERIFIED in every other runnable case -- confirmed corpus-wide (46 of 47 cases
+# with check_results.json) -- which means desk/verify/gaps.py's compute_gaps() (every
+# NOT_VERIFIED check is a gap, by design; see its own docstring) always reports a gap,
+# and eval/run.py always invokes Job B, for every case in the corpus except the one
+# genuinely InResponseTo-related fault.
+#
+# That NOT_VERIFIED state is a real, legitimate, production-realistic evidence gap from
+# the policy engine's point of view: nothing in the pipeline can tell "this SP will
+# never have a request-ID log" apart from "this SP hasn't been asked for one yet," and
+# desk/verify/checks/inresponseto.py's own _CHECK_TO_ARTIFACT entry maps both checks to
+# REQUESTED_ARTIFACT_SP_REQUEST_LOG -- a real, actionable ask a genuine SP integration
+# could answer. So desk/policy/rules.py correctly computes has_gap=True and
+# awaiting_evidence for these three cases. The corpus's expected_disposition of
+# review_required instead relies on knowing that the true injected fault has nothing to
+# do with InResponseTo -- exactly the kind of ground-truth peek this policy engine is
+# designed to refuse (see desk/policy/rules.py's module docstring). Fixing has_gap to
+# special-case these two check IDs would mean hardcoding a fact about this harness's own
+# incompleteness (it never wires up an SP-side request-ID log) into code that is
+# supposed to model a production policy -- the wrong direction entirely, since a real SP
+# integration could and should supply that evidence. So the mismatch stays, named, here.
+KNOWN_DISPOSITION_MISMATCHES = {
+    "duplicate_role_attributes": (
+        "the corpus's one `conflicting` case; its real pipeline signals (verify_state "
+        "ok, no FAILED check, a real evidence gap from the universal SAML-INRESP-01/02 "
+        "baseline described above, Job C never invoked because eval/run.py gates Job C "
+        "on has_any_failed()) are identical to withheld_cert/withheld_clock's, so a "
+        "policy built only on real, production-realistic signals cannot distinguish it "
+        "from an ambiguous-evidence case without reading the label's target_check_ids -- "
+        "which would be ground-truth leakage into the policy engine. See "
+        "desk/policy/rules.py."
+    ),
+    "wrong_binding": (
+        "an `artifact_mutation` case whose real fault (SAML binding type: Redirect vs "
+        "POST) lives entirely in the HAR's request line, which desk/verify/checks/ "
+        "never reads (label.json's own no_check_coverage_reason field says so) -- so "
+        "the check grid runs fully clean apart from the universal SAML-INRESP-01/02 "
+        "baseline gap described above, the same shape as duplicate_role_attributes's. "
+        "Two independent reasons compound here: no check covers the real fault at all, "
+        "and the one gap that does exist is the same structurally-unresolvable-by-this-"
+        "harness InResponseTo baseline."
+    ),
+    "stripped_relaystate": (
+        "an `artifact_mutation` case whose real fault (a stripped RelayState parameter) "
+        "lives entirely in the HAR/transport layer (the ACS POST body), outside anything "
+        "desk/verify/checks/ reads from the parsed SAMLResponse XML (label.json's own "
+        "no_check_coverage_reason field says so) -- the identical shape and reasoning as "
+        "wrong_binding: no check covers the real fault, and the one gap that does exist "
+        "is the same structurally-unresolvable-by-this-harness InResponseTo baseline."
+    ),
+}
+
+
+def computed_disposition(case: dict) -> str:
+    """Builds a PolicyInput from a persisted CaseRecord dict (eval/run.py's JSON
+    shape) and returns desk/policy/rules.py's computed disposition. This translation
+    lives here, in the eval layer, on purpose -- desk/policy must never import from
+    eval/ or know what a CaseRecord is; see desk/policy/rules.py's module docstring."""
+    job_c = case.get("job_c")
+    job_b = case.get("job_b")
+    job_a = case.get("job_a") or {}
+    grounding = case.get("grounding")
+    inp = PolicyInput(
+        verify_state=case["verify_state"],
+        # eval/run.py invokes Job C exactly when run.has_any_failed() is True and Job B
+        # exactly when compute_gaps(run) is non-empty (verify_state == "ok" only) -- so
+        # a JobRecord's mere presence on the persisted CaseRecord already IS the real
+        # signal, with no need to re-derive it from check_counts.
+        has_failed_check=job_c is not None,
+        has_gap=job_b is not None,
+        job_c_invoked=job_c is not None,
+        grounding_accepted=grounding["accepted"] if grounding is not None else None,
+        final_root_cause=case["final_root_cause"],
+        instruction_signal_detected=bool(job_a.get("instruction_signals")),
+        # desk/custody isn't wired into eval/run.py's pipeline yet (confirmed by
+        # inspection: no desk.custody import anywhere in eval/run.py), so no corpus
+        # case can ever produce a real CustodyResult here. Always False, not invented.
+        any_live_credential=False,
+    )
+    return decide(inp).disposition
+
+
+def disposition_accuracy(records: dict) -> dict:
+    """Checks desk/policy/rules.py's computed disposition against each case's
+    expected_disposition, across every runnable case (n=50) -- the broader answer to
+    the TODO this module's docstring used to carry, before Phase 5 landed desk/policy.
+    See KNOWN_DISPOSITION_MISMATCHES: its three cases are separated out as a real,
+    accepted, named divergence (all three sharing one root cause) rather than silently
+    excluded from the denominator (which would inflate the number) or silently folded
+    into an undifferentiated miss count (which would hide why it happened)."""
+    rows = []
+    correct = 0
+    known_mismatches = []
+    unexpected_mismatches = []
+    for c in records["cases"]:
+        expected = c["label"].get("expected_disposition")
+        if expected is None:
+            # Defensive, not currently reachable: every case in records["cases"] is a
+            # runnable case (documented_gap is excluded upstream by
+            # eval/run.py's discover_case_ids), and every runnable case's label.json
+            # carries expected_disposition. Guarding anyway rather than assuming.
+            continue
+        actual = computed_disposition(c)
+        ok = actual == expected
+        correct += int(ok)
+        row = {"case_id": c["case_id"], "expected": expected, "actual": actual, "correct": ok}
+        rows.append(row)
+        if not ok:
+            (known_mismatches if c["case_id"] in KNOWN_DISPOSITION_MISMATCHES else unexpected_mismatches).append(
+                row
+            )
+    n = len(rows)
+    return {
+        "n": n,
+        "correct": correct,
+        "accuracy": (correct / n) if n else None,
+        "known_mismatches": known_mismatches,
+        "known_mismatch_reasons": {
+            r["case_id"]: KNOWN_DISPOSITION_MISMATCHES[r["case_id"]] for r in known_mismatches
+        },
+        "unexpected_mismatches": unexpected_mismatches,
+        "rows": rows,
+    }
+
+
 _SECRET_PATTERNS = {
     "jwt": re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),
     "bearer_header": re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{16,}\b", re.IGNORECASE),
@@ -355,6 +510,7 @@ def compute_all_metrics(records: dict, fixtures_dir: Path) -> dict:
         "conflicting_handling_correctness": conflicting_handling_correctness(records),
         "malformed_handling_correctness": malformed_handling_correctness(records),
         "no_saml_response_handling_correctness": no_saml_response_handling_correctness(records),
+        "disposition_accuracy": disposition_accuracy(records),
         "grounding_rejection_rate": grounding_rejection_rate(records),
         "injection_resistance": injection_resistance(records),
         "secret_leakage_to_prompt": secret_leakage_scan(fixtures_dir),

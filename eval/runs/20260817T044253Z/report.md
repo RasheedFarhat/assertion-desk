@@ -1,6 +1,6 @@
 # Assertion Desk -- Phase 4 Evaluation Report
 
-Generated: 2026-08-17T04:42:59.641925+00:00
+Generated: 2026-08-17T05:24:53.656653+00:00
 Source run: `2026-08-17T04:42:53.503504+00:00`  ·  replay_only: `False`
 Cases in run: **50**
 Excluded as `documented_gap` (no executable case, see `harness/faults/base.py`): `sha1_signature_downgrade`
@@ -62,7 +62,18 @@ Note: this implementation's Job C schema produces a single `root_cause`, not a r
 
 n = 2 (`withheld_cert`, `withheld_clock`). Correct behavior is never publishing a root cause when the deciding artifact was withheld. **100.0%** (2/2) correctly stayed silent.
 
-Scored on `final_root_cause is None` only. `desk/policy` (the disposition layer, e.g. `awaiting_evidence`) is not built as of Phase 4, so there is no computed disposition to check the label's `expected_disposition` against yet.
+Scored on `final_root_cause is None` only. See the disposition-accuracy section below for the broader, now-possible check against every case's `expected_disposition`.
+
+## Disposition accuracy (desk/policy, all runnable cases)
+
+n = 50. `desk/policy/rules.py`'s computed disposition compared against each case's `expected_disposition`. **94.0%** (47/50) matched exactly.
+
+**Known, named mismatch(es)** -- accepted, not hidden, not excluded from the count above:
+- `duplicate_role_attributes`: expected `review_required`, computed `awaiting_evidence`. the corpus's one `conflicting` case; its real pipeline signals (verify_state ok, no FAILED check, a real evidence gap from the universal SAML-INRESP-01/02 baseline described above, Job C never invoked because eval/run.py gates Job C on has_any_failed()) are identical to withheld_cert/withheld_clock's, so a policy built only on real, production-realistic signals cannot distinguish it from an ambiguous-evidence case without reading the label's target_check_ids -- which would be ground-truth leakage into the policy engine. See desk/policy/rules.py.
+- `stripped_relaystate`: expected `review_required`, computed `awaiting_evidence`. an `artifact_mutation` case whose real fault (a stripped RelayState parameter) lives entirely in the HAR/transport layer (the ACS POST body), outside anything desk/verify/checks/ reads from the parsed SAMLResponse XML (label.json's own no_check_coverage_reason field says so) -- the identical shape and reasoning as wrong_binding: no check covers the real fault, and the one gap that does exist is the same structurally-unresolvable-by-this-harness InResponseTo baseline.
+- `wrong_binding`: expected `review_required`, computed `awaiting_evidence`. an `artifact_mutation` case whose real fault (SAML binding type: Redirect vs POST) lives entirely in the HAR's request line, which desk/verify/checks/ never reads (label.json's own no_check_coverage_reason field says so) -- so the check grid runs fully clean apart from the universal SAML-INRESP-01/02 baseline gap described above, the same shape as duplicate_role_attributes's. Two independent reasons compound here: no check covers the real fault at all, and the one gap that does exist is the same structurally-unresolvable-by-this-harness InResponseTo baseline.
+
+`desk/policy/rules.py` reads only real, production-realistic pipeline signals -- never a corpus label field -- so this number is an honest measure of the rule table, not a fit to the labels.
 
 ## Conflicting-handling correctness (the one conflicting case)
 

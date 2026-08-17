@@ -33,6 +33,339 @@
       "total_output_tokens": 7085
     }
   },
+  "disposition_accuracy": {
+    "accuracy": 0.94,
+    "correct": 47,
+    "known_mismatch_reasons": {
+      "duplicate_role_attributes": "the corpus's one `conflicting` case; its real pipeline signals (verify_state ok, no FAILED check, a real evidence gap from the universal SAML-INRESP-01/02 baseline described above, Job C never invoked because eval/run.py gates Job C on has_any_failed()) are identical to withheld_cert/withheld_clock's, so a policy built only on real, production-realistic signals cannot distinguish it from an ambiguous-evidence case without reading the label's target_check_ids -- which would be ground-truth leakage into the policy engine. See desk/policy/rules.py.",
+      "stripped_relaystate": "an `artifact_mutation` case whose real fault (a stripped RelayState parameter) lives entirely in the HAR/transport layer (the ACS POST body), outside anything desk/verify/checks/ reads from the parsed SAMLResponse XML (label.json's own no_check_coverage_reason field says so) -- the identical shape and reasoning as wrong_binding: no check covers the real fault, and the one gap that does exist is the same structurally-unresolvable-by-this-harness InResponseTo baseline.",
+      "wrong_binding": "an `artifact_mutation` case whose real fault (SAML binding type: Redirect vs POST) lives entirely in the HAR's request line, which desk/verify/checks/ never reads (label.json's own no_check_coverage_reason field says so) -- so the check grid runs fully clean apart from the universal SAML-INRESP-01/02 baseline gap described above, the same shape as duplicate_role_attributes's. Two independent reasons compound here: no check covers the real fault at all, and the one gap that does exist is the same structurally-unresolvable-by-this-harness InResponseTo baseline."
+    },
+    "known_mismatches": [
+      {
+        "actual": "awaiting_evidence",
+        "case_id": "duplicate_role_attributes",
+        "correct": false,
+        "expected": "review_required"
+      },
+      {
+        "actual": "awaiting_evidence",
+        "case_id": "stripped_relaystate",
+        "correct": false,
+        "expected": "review_required"
+      },
+      {
+        "actual": "awaiting_evidence",
+        "case_id": "wrong_binding",
+        "correct": false,
+        "expected": "review_required"
+      }
+    ],
+    "n": 50,
+    "rows": [
+      {
+        "actual": "review_required",
+        "case_id": "acs_url_trailing_slash",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "assertion_expired",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "assertion_expired__adv_s4_obfuscated",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "broken_signature",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "broken_signature__confident_misdiagnosis",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "broken_signature__hostile",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "broken_signature__non_native",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "broken_signature__vague",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_expired",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_expired__confident_misdiagnosis",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_expired__hostile",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_expired__non_native",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_expired__vague",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_rotation",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_rotation__adv_s1_direct_override",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_rotation__confident_misdiagnosis",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_rotation__hostile",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_rotation__non_native",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "cert_rotation__vague",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "clock_skew",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "clock_skew__adv_s3_context_manipulation",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "clock_skew__confident_misdiagnosis",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "clock_skew__hostile",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "clock_skew__non_native",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "clock_skew__vague",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "destination_mismatch",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "escalate",
+        "case_id": "double_encoded_response",
+        "correct": true,
+        "expected": "escalate"
+      },
+      {
+        "actual": "awaiting_evidence",
+        "case_id": "duplicate_role_attributes",
+        "correct": false,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "encrypted_assertion",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "http_https_mismatch",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "inresponseto_mismatch",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "missing_nameid",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "missing_nameid__confident_misdiagnosis",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "missing_nameid__hostile",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "missing_nameid__non_native",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "missing_nameid__vague",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "negative_control",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "awaiting_evidence",
+        "case_id": "stripped_relaystate",
+        "correct": false,
+        "expected": "review_required"
+      },
+      {
+        "actual": "escalate",
+        "case_id": "truncated_response",
+        "correct": true,
+        "expected": "escalate"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "unsupported_nameid_format",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "awaiting_evidence",
+        "case_id": "withheld_cert",
+        "correct": true,
+        "expected": "awaiting_evidence"
+      },
+      {
+        "actual": "awaiting_evidence",
+        "case_id": "withheld_clock",
+        "correct": true,
+        "expected": "awaiting_evidence"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "wrong_audience",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "awaiting_evidence",
+        "case_id": "wrong_binding",
+        "correct": false,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "wrong_issuer",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "wrong_issuer__adv_s2_persona_hijack",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "wrong_issuer__confident_misdiagnosis",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "wrong_issuer__hostile",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "wrong_issuer__non_native",
+        "correct": true,
+        "expected": "review_required"
+      },
+      {
+        "actual": "review_required",
+        "case_id": "wrong_issuer__vague",
+        "correct": true,
+        "expected": "review_required"
+      }
+    ],
+    "unexpected_mismatches": []
+  },
   "documented_gap_ids": [
     "sha1_signature_downgrade"
   ],
