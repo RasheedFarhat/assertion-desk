@@ -1,0 +1,98 @@
+name: Eval Replay
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  eval-replay:
+    name: make eval-replay (fixtures only, no network, no API key, $0)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install system dependencies for xmlsec
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxml2-dev libxslt1-dev libxmlsec1-dev libxmlsec1-openssl pkg-config
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
+
+      # eval/run.py's --replay-only path is structurally network-free regardless of
+      # whether GEMINI_API_KEY happens to be set (desk/reason/fallback.py never
+      # calls a live client when replay_only=True; ReplayMiss is raised instead on
+      # any case whose exact prompt is not already in fixtures/). This step verifies
+      # that guarantee holds by running it with no key configured in the job at all,
+      # matching the plan's own Verification item 5.
+      - name: Run eval-replay
+        run: |
+          python3 -m eval.run --replay-only --out-dir eval/runs/ci-replay
+          python3 -m eval.report eval/runs/ci-replay/records.json \
+            --out eval/runs/ci-replay/report.md \
+            --metrics-out eval/runs/ci-replay/metrics.json
+
+      # docs/MEASUREMENTS.md's own reproducibility claim: a fresh --replay-only run
+      # must match the committed baseline field-for-field in metrics.json, except
+      # generated_from's timestamp and the replay_only flag (that committed run is a
+      # live/fixture-mixed pass; this CI run is fixture-only by construction, so
+      # replay_only legitimately differs). A diff anywhere else means the corpus, a
+      # fixture, or eval/metrics.py drifted without docs/MEASUREMENTS.md's committed
+      # numbers being updated to match -- exactly the failure mode this gate exists
+      # to catch, not a hypothetical one.
+      - name: Diff against the committed baseline (docs/MEASUREMENTS.md's run)
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+
+          IGNORE = {"generated_from", "replay_only"}
+
+          baseline = json.load(open("eval/runs/20260817T044253Z/metrics.json"))
+          fresh = json.load(open("eval/runs/ci-replay/metrics.json"))
+
+          b = {k: v for k, v in baseline.items() if k not in IGNORE}
+          f = {k: v for k, v in fresh.items() if k not in IGNORE}
+
+          if b != f:
+              print("METRICS DRIFT vs eval/runs/20260817T044253Z/metrics.json "
+                    "(docs/MEASUREMENTS.md's committed run)")
+              for key in sorted(set(b) | set(f)):
+                  if b.get(key) != f.get(key):
+                      print(f"  {key}:")
+                      print(f"    baseline: {b.get(key)}")
+                      print(f"    fresh:    {f.get(key)}")
+              sys.exit(1)
+
+          print(
+              "metrics.json matches the committed baseline field-for-field "
+              "(excluding generated_from and replay_only, as documented in "
+              "docs/MEASUREMENTS.md)."
+          )
+          PY
+
+      - name: Upload eval-replay report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: eval-replay-report
+          path: |
+            eval/runs/ci-replay/report.md
+            eval/runs/ci-replay/metrics.json
+          retention-days: 30

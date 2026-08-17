@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: pytest (Python 3.13, Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      # pyxmlsec (the `xmlsec` package in requirements.txt) ships no Linux wheel on
+      # PyPI and builds against libxmlsec1's own C headers at install time; without
+      # these packages `pip install -r requirements.txt` fails on a clean Ubuntu
+      # runner the same way it would for a stranger following the README.
+      - name: Install system dependencies for xmlsec
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxml2-dev libxslt1-dev libxmlsec1-dev libxmlsec1-openssl pkg-config
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
+
+      # Full suite, no external services and no API key required: corpus/ and
+      # fixtures/ are both committed to the repo, so tests/ never reaches out to
+      # Keycloak, Playwright, or a live model provider. Same 357 tests `make test`
+      # runs locally (docs/MEASUREMENTS.md, docs/LIMITATIONS.md).
+      - name: Run test suite
+        run: python3 -m pytest tests/ -v
+
+      # corpus/MANIFEST.json's own checksums plus fault-to-check label sanity (every
+      # fault_id maps to at least one check capable of detecting it) -- the plan's
+      # Verification item 1, "make corpus-verify". A separate step so a corpus-
+      # integrity failure is visible independently of a code-logic failure.
+      - name: Verify corpus manifest and label sanity
+        run: python3 -m pytest tests/harness/ -v

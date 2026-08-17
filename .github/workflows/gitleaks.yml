@@ -1,0 +1,38 @@
+name: gitleaks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 so the scan covers full history on push, not just the tip
+      # commit -- a secret introduced and then "removed" in a later commit is still
+      # in the repo's history and still a real leak.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # docs/THREAT_MODEL.md's T10 names the absence of a gitleaks CI gate as a
+      # real, unmitigated gap, distinct from the corpus generator's own scrubbing at
+      # generation time and from tests/custody/ -k leakage's independent scan of
+      # stored model-prompt transcripts. This workflow is that gate, over the
+      # repository itself. GITLEAKS_LICENSE is only required for GitHub
+      # Organizations, not personal accounts, per gitleaks-action's own docs, so it
+      # is intentionally not configured here.
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
