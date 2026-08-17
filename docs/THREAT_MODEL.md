@@ -155,15 +155,32 @@ no such target exists in this repository yet (see `docs/LIMITATIONS.md`).
 available when a required artifact is missing. Conflicting evidence (two certificates in metadata,
 neither matching) produces `review_required`, never a guessed diagnosis.
 
-**Named, honestly reported mismatch.** `desk/policy/rules.py`'s docstring documents a real,
-disclosed disagreement: the corpus's one `conflicting` case, `duplicate_role_attributes`, and its
-two `ambiguous` cases produce identical real pipeline signals under the ground-truth-leakage
-boundary this module obeys (it never reads a corpus label field to break the tie), so the rule
-table computes `awaiting_evidence` where the label says `review_required`. `tests/policy/
-test_rules.py`'s corpus parity test asserts this mismatch stays a mismatch rather than being
-silently special-cased away, and `eval/metrics.py` reports it by name. This is exactly the kind
-of limitation this project's own culture requires naming rather than quietly fixing by leaking
-the answer into the decision logic.
+**Named, honestly reported mismatches, three of them, not one.** `desk/policy/rules.py`'s
+docstring calls out `duplicate_role_attributes` by name as an illustrative example, but the
+authoritative, complete list lives in `eval/metrics.py`'s `KNOWN_DISPOSITION_MISMATCHES` dict,
+and it has three entries, all tracing to one shared root cause: `harness/faults/baseline.py`
+hardcodes `in_response_to_expected=None` because the harness's own minimal SP
+(`harness/capture/sp_app.py`) never persists its own outbound request IDs to check a response
+against later. That makes `SAML-INRESP-01`/`SAML-INRESP-02` come back `NOT_VERIFIED` in
+effectively every case (46 of 47 cases with check results), not just the one case that fault is
+actually about, which means `compute_gaps()` almost always reports something.
+
+- **`duplicate_role_attributes`** (the corpus's one `conflicting` case): its real pipeline signals
+  are indistinguishable from the `withheld_cert`/`withheld_clock` `ambiguous` cases under the
+  ground-truth-leakage boundary this module obeys (it never reads a corpus label field to break
+  the tie), so the rule table computes `awaiting_evidence` where the label says
+  `review_required`.
+- **`wrong_binding`**: has zero check coverage for its actual fault (a Redirect-vs-POST binding
+  mismatch that lives in the HAR request line, not the parsed SAMLResponse), a fact the corpus's
+  own `label.json` states via `no_check_coverage_reason`, compounding the same InResponseTo gap.
+- **`stripped_relaystate`**: same shape as `wrong_binding`, a transport-layer fault with no check
+  coverage, compounding the same InResponseTo gap.
+
+`tests/policy/test_rules.py`'s corpus parity test asserts these three mismatches stay mismatches
+rather than being silently special-cased away, and `eval/metrics.py` reports all three by name
+via a small, explicit, case-id-keyed allowlist, not a general rule that could silently absorb an
+unrelated future disposition bug. This is exactly the kind of limitation this project's own
+culture requires naming rather than quietly fixing by leaking the answer into the decision logic.
 
 ## T9 - Unauthenticated n8n webhook
 

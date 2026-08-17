@@ -25,7 +25,7 @@ itself let an ungrounded claim become an action.
 customer artifact bundle  (UNTRUSTED: prose, HAR, SAMLResponse, IdP metadata)
         │
         ▼
-  desk/custody     8 typed finding classes -> placeholders + a custody record   NO AI
+  desk/custody     9 typed finding classes -> placeholders + a custody record   NO AI
         │          idp_session_cookie, bearer_token, oauth_refresh_token,
         │          plaintext_credential, api_key, private_key, nameid_pii,
         │          email_pii, group_membership. Cleartext secret values are
@@ -126,7 +126,9 @@ model's own text; `desk/policy`'s ignorance of that text is the defense that doe
 ## Real scale, stated plainly
 
 20 checks, not the plan's originally-cited approximate figure, verified by direct count in
-`desk/verify/checks/*.py`. 8 custody finding classes (`desk/custody/findings.py`). 51 corpus
+`desk/verify/checks/*.py`. 9 custody finding classes (`desk/custody/findings.py`), one more than
+the plan's original eight (`plaintext_credential` was added after reading a real captured HAR).
+51 corpus
 cases, 50 executable (`corpus/MANIFEST.json`), not the plan's aspirational ~250. Case
 persistence covers 3 of the 10 entities in the plan's original data model (`Case`,
 `TraceEvent`, `Approval`); the other 7 live only in an in-process cache. Full detail on what
