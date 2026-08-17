@@ -1,6 +1,36 @@
 name: assertion-desk
 
 services:
+  # -------------------------------------------------------------------- #
+  # core: desk/api.py itself, containerized. Everything else in this file
+  # is optional infrastructure this service can run without -- see each
+  # profile's own comment for what it adds and why it stays separate.
+  # -------------------------------------------------------------------- #
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["core"]
+    ports:
+      - "127.0.0.1:5050:5050"
+    environment:
+      DESK_DB_PATH: /data/desk.db
+      PORT: "5050"
+      # Unset by default -- desk/reason's fixture-cache-first design (see
+      # eval/run.py's --replay-only path and desk/api.py's own module
+      # docstring) means POST /cases against a corpus case already covered
+      # by fixtures/ works with no key at all. Set this in a local .env
+      # (gitignored) to exercise live Gemini calls instead.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - ad_case_db:/data
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5050/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   keycloak-db:
     image: postgres:16-alpine
     profiles: ["idp"]
@@ -43,5 +73,53 @@ services:
       timeout: 5s
       retries: 30
 
+  # -------------------------------------------------------------------- #
+  # orchestration: n8n, per plan section 17 -- "the wire, not the brain."
+  # n8n calls desk/api.py's HTTP surface (POST /cases, the approval and
+  # publish endpoints); it never touches parsing, verification, custody,
+  # grounding, or policy directly, and nothing in this repo's test suite or
+  # `make demo`/`make eval*` depends on this container running. See
+  # n8n/README.md for what n8n does and does not do, and n8n/*.json for the
+  # four workflow exports this profile is meant to run.
+  # -------------------------------------------------------------------- #
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.34.1
+    profiles: ["orchestration"]
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: http://localhost:5678/
+      GENERIC_TIMEZONE: America/Chicago
+      # Local-only convenience for a self-hosted dev instance behind
+      # 127.0.0.1 port binding above, not a production TLS setup.
+      N8N_SECURE_COOKIE: "false"
+      # The base URL WF1-WF4 (n8n/*.json) call into. Overridable so the
+      # orchestration profile can point at a host-run `make serve` instead
+      # of the `app` service, without editing the imported workflows.
+      DESK_API_BASE_URL: ${DESK_API_BASE_URL:-http://app:5050}
+    volumes:
+      - ad_n8n_data:/home/node/.n8n
+
+  # -------------------------------------------------------------------- #
+  # local-model: Ollama, desk/reason's documented fallback tier (plan
+  # section 16's Gemini-primary/Ollama-fallback cascade) -- not required
+  # for `make eval-replay`, which serves every case from fixtures/ instead.
+  # No model is pulled automatically; pull one explicitly, e.g.
+  # `docker compose --profile local-model exec ollama ollama pull llama3.1:8b`.
+  # -------------------------------------------------------------------- #
+  ollama:
+    image: ollama/ollama:0.32.13
+    profiles: ["local-model"]
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ad_ollama_data:/root/.ollama
+
 volumes:
+  ad_case_db:
   ad_keycloak_db:
+  ad_n8n_data:
+  ad_ollama_data:

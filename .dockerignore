@@ -1,0 +1,14 @@
+.git/
+.github/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+*.sqlite3
+.env
+docs/
+tests/
+harness/
+n8n/
+mocks/
