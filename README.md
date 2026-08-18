@@ -63,7 +63,43 @@ brew install libxml2 libxmlsec1 pkg-config
 
 ## How it works
 
-Only Jobs A, B, and C involve a language model. Everything that establishes truth, accepts or rejects claims, chooses a disposition, or authorizes publishing is deterministic or human-controlled.
+Only Jobs A, B, and C involve a language model. Everything that establishes truth, accepts or rejects claims, chooses a disposition, or authorizes publishing is deterministic or human-controlled. The diagram draws that boundary explicitly: the deterministic core has full authority over facts, the AI layer is confined to producing prose from facts it did not decide, and grounding sits between them as a veto, not a suggestion.
+
+```mermaid
+flowchart TD
+    A["Customer artifact bundle<br/>prose + HAR + SAMLResponse + IdP metadata<br/><b>UNTRUSTED</b>"]
+
+    subgraph DET["Deterministic core -- decides what is TRUE -- no AI anywhere in this box"]
+        direction TB
+        B["desk/custody<br/>quarantine credentials + PII<br/>before anything else reads them"]
+        C["desk/verify<br/>~20 SAML checks, six-state assurance"]
+        D["gap computation<br/>what is not_verified, and why"]
+        G["desk/ground<br/>reject any claim citing an unknown check<br/>or a state the verifier never produced"]
+        P["desk/policy<br/>review_required / escalate / awaiting_evidence"]
+        B --> C --> D
+        G --> P
+    end
+
+    subgraph AI["desk/reason -- subordinate -- decides only what to SAY"]
+        direction TB
+        J["Job A -- read the customer's prose"]
+        K["Job B -- draft an evidence request"]
+        L["Job C -- explain a failed check<br/>never invoked without one"]
+    end
+
+    H["Human reviewer<br/>approve, override, or escalate"]
+    Z["Published reply / evidence request"]
+
+    A --> B
+    D -->|"context + gaps only,<br/>never raw artifacts"| J
+    D --> K
+    D -->|"only if a check failed"| L
+    J --> G
+    K --> G
+    L --> G
+    P -->|"anything customer-facing"| H
+    H --> Z
+```
 
 The pipeline follows one direction:
 
