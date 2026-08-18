@@ -3,7 +3,7 @@ PYTHON := .venv/bin/python3
 TIMESTAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
 
 .PHONY: help test verify policy case custody ground reason pipeline api corpus-verify \
-        corpus eval eval-replay demo serve roi
+        corpus eval eval-replay demo serve roi baseline
 
 help:
 	@echo "Assertion Desk -- available targets:"
@@ -24,6 +24,9 @@ help:
 	@echo "  make serve          run desk/api.py's dev server on http://127.0.0.1:5050"
 	@echo "  make roi ARGS=...   ROI calculator (plan section 24) -- see docs/HUMAN_BASELINE.md;"
 	@echo "                      refuses to run without --baseline-minutes and --review-minutes"
+	@echo "  make baseline       interactive local timer for the human baseline study --"
+	@echo "                      samples cases, times you, self-scores after you commit, and"
+	@echo "                      writes docs/HUMAN_BASELINE_RESULTS.md -- http://127.0.0.1:5151"
 	@echo ""
 	@echo "Note (2026-08-17): desk/api.py now exists (POST /cases, case state machine over"
 	@echo "HTTP, and a server-rendered /cases/<id>/card). 'make demo' is still a CLI-only"
@@ -170,3 +173,17 @@ serve:
 # Example: make roi ARGS="--baseline-minutes 45 --review-minutes 5"
 roi:
 	$(PYTHON) -m eval.roi $(ARGS)
+
+# --------------------------------------------------------------------------------- #
+# Human baseline study helper (tools/, deliberately not desk/ -- a research
+# instrument for running docs/HUMAN_BASELINE.md, not part of the product)
+# --------------------------------------------------------------------------------- #
+
+# Samples 15 normal + the 2 ambiguous cases that actually exist (see the module
+# docstring for why not 5), times each case with a real server-side clock, hides
+# expected_root_cause/check_results.json until you submit an answer, self-scores,
+# and can write docs/HUMAN_BASELINE_RESULTS.md once all cases are timed. State
+# persists in docs/baseline_timings.json so stopping and restarting never reshuffles
+# an in-progress study.
+baseline:
+	$(PYTHON) tools/baseline_study.py

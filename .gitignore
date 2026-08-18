@@ -6,3 +6,8 @@ node_modules/
 .DS_Store
 *.sqlite3
 .env
+
+# tools/baseline_study.py's working state -- in-progress timer data, not a
+# deliverable. The deliverable is docs/HUMAN_BASELINE_RESULTS.md, committed once
+# the study is complete.
+docs/baseline_timings.json
