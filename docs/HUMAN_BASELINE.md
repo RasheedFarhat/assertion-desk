@@ -15,6 +15,36 @@ support engineer does with a HAR viewer, `openssl`, and a text editor, and an in
 would be exactly the kind of unverified assertion `desk/ground` exists to reject if the model
 tried to make it. The honest move is to run the study, not to estimate around not having run it.
 
+## Published context, not a substitute input
+
+Three external figures are worth knowing while reading this document, and none of
+them may be used in place of `--baseline-minutes` or `--review-minutes`. Each measures
+a different population than a single hands-on SAML/SSO diagnosis, and none is
+SAML-federation-specific:
+
+- General IT ticket handling averages **63 minutes per ticket** across 10,900 users
+  and 400+ companies, with only 54.3% resolved in a single pass
+  ([Unthread, 2026](https://unthread.io/blog/support-ticket-resolution-statistics/)).
+  This spans every ticket type and includes wait and reassignment time, not isolated
+  hands-on diagnosis minutes.
+- Root-cause identification specifically runs **30 to 90 minutes with traditional
+  tooling**, versus 5 to 15 minutes with AI-assisted observability
+  ([OpenObserve MTTR guide, 2026](https://openobserve.ai/blog/mean-time-to-resolution-mttr-guide/)).
+  This is general SRE/observability incident data, not identity federation. It happens
+  to bracket this project's own unverified plan-stage estimate of 45-55 minutes
+  (plan section 14), which is a useful sanity check, not corroboration.
+- A clean Entra ID SAML *integration* (new tenant, admin access both sides) takes 1 to
+  4 hours of joint work, and a self-test page cuts new-tenant support time 60-80%
+  ([Scalekit SAML debugging handbook, 2026](https://www.scalekit.com/blog/saml-debugging-handbook-2026-how-to-diagnose-log-and-resolve-sso-failures)).
+  That is initial onboarding, not break/fix diagnosis on an already-working
+  integration, so it is not comparable to this study's cases either.
+
+These numbers motivate why the problem is worth solving. They cannot answer the one
+question this study exists to answer, which is how long *this specific diagnostic
+workflow* takes a person's hands, because nobody has published that number and every
+adjacent figure measures a different task. `eval/roi.py` still refuses to run without
+a real timed input for exactly this reason; nothing above changes that.
+
 ## What to do
 
 1. **Pick the 20 cases.** A stratified random sample: 15 from the `normal` stratum, 5 from

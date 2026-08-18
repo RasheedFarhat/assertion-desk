@@ -193,7 +193,7 @@ The ROI calculator refuses to invent its two most important inputs. Supply measu
 make roi ARGS="--baseline-minutes 45 --review-minutes 5"
 ```
 
-The numbers above are an invocation example, not a measured result.
+The numbers above are an invocation example, not a measured result. [Human Baseline](docs/HUMAN_BASELINE.md) also cites published IT-ticket and root-cause-diagnosis benchmarks as motivating context; none of them are SAML-specific or hands-on-diagnosis-specific enough to stand in for a real measurement, so they are never passed to this calculator.
 
 </details>
 
