@@ -7,20 +7,24 @@ shows it, not softened into marketing hedging. Nothing here is deferred silently
 
 ## Accuracy
 
-- **AI-assisted root-cause accuracy is 65.0% (26/40) against an 85% threshold, and it currently
-  trails the deterministic-only baseline (90.0%, 36/40) by 25 points.** This is the single
-  most important number in the project and it is a failed target, not a met one. Full
-  breakdown in `docs/MEASUREMENTS.md`. Of the 14 misses: 9 are the grounding validator
-  correctly declining to guess (arguably not defects), and 5 share one specific, repeatable
-  bias, the model defaulting to citing `SAML-SIG-01` when a more specific check
-  (`SAML-NAMEID-01`, `SAML-NAMEID-02`, `SAML-ENC-01`) is the actual cause. Closing that bias
-  is named as the highest-leverage next step in `docs/MEASUREMENTS.md` and has not been done.
-- **No number in this repository reflects Gemini.** No `GEMINI_API_KEY` is configured in the
-  environment the published run was generated in, so every model call in that run went to the
-  local Ollama fallback tier (`qwen3:1.7b`). The architecture, schema enforcement, and
-  grounding veto are exercised correctly regardless of which tier answers, but the accuracy
-  and prose-quality numbers should not be read as representative of the system's intended
-  Gemini-primary path.
+- **AI-assisted root-cause accuracy fails its 85% threshold on both models measured so far,
+  and trails the deterministic-only baseline (90.0%, 36/40, identical in both runs since no
+  LLM sits in that path) either way: 65.0% (26/40) for `qwen3:1.7b`, 72.5% (29/40) for
+  `gemini-3.1-flash-lite`.** This is the single most important number in the project and it is
+  a failed target on every model tried, not a met one. Full breakdown in
+  `docs/MEASUREMENTS.md`. The two models fail for different, equally systematic reasons, not
+  the same one: `qwen3` defaults to citing `SAML-SIG-01` when a more specific check is the
+  actual cause (5 of 14 misses); `gemini-3.1-flash-lite` confuses certificate expiry with
+  generic assertion-condition expiry in 4 of 5 `cert_expired` variants, and never once names
+  `SAML-NAMEID-01` across all 5 `missing_nameid` variants. Closing either bias is real,
+  unstarted prompt-engineering work — a fix tuned against one model's specific failure mode is
+  not guaranteed to transfer to the other's.
+- **The only Gemini number in this repository is `gemini-3.1-flash-lite`, not the flagship
+  `gemini-3.6-flash` the pipeline defaults to.** The flagship's free-tier quota is a hard 20
+  requests/day/project, far short of a full corpus pass, and enabling Cloud Billing to raise it
+  has been declined so far. The architecture, schema enforcement, and grounding veto are
+  confirmed working identically on both Gemini models; the accuracy numbers are flash-lite's
+  only. `qwen3:1.7b` remains the sole non-Gemini data point.
 - **The published run is one live pass, not the plan's `k=3`-repeats design.** What has been
   established is that a live pass and an offline `--replay-only` pass of the identical corpus
   now produce byte-for-byte identical metrics (the two reproducibility bugs described in
