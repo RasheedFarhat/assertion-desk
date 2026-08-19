@@ -10,9 +10,9 @@
 
 <p><code>make eval-replay</code> · 50-case offline proof · demo-scoped, not production-ready</p>
 
-<video src="https://raw.githubusercontent.com/RasheedFarhat/assertion-desk/main/docs/media/demo.mp4" controls muted loop playsinline poster="https://raw.githubusercontent.com/RasheedFarhat/assertion-desk/main/docs/media/demo-poster.png" width="100%"></video>
+<img src="https://raw.githubusercontent.com/RasheedFarhat/assertion-desk/main/docs/media/demo.gif" alt="Assertion Desk verifying a failed SAML certificate check, then drafting a root-cause explanation grounded in that evidence" width="100%">
 
-<p>A single case, verified, explained, and decided. <a href="https://claude.ai/code/artifact/79a8fd66-6c3f-4346-97d7-e24394482dd3">Watch it walked through</a>.</p>
+<p>Verify catches the failure; explain drafts a root cause grounded in it. <a href="https://github.com/RasheedFarhat/assertion-desk/blob/main/docs/media/demo.mp4">Full-resolution video</a> · <a href="https://claude.ai/code/artifact/79a8fd66-6c3f-4346-97d7-e24394482dd3">full case, start to finish</a>.</p>
 
 </div>
 
