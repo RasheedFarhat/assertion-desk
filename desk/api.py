@@ -271,28 +271,68 @@ def _reconstruct_prompts(detail: CaseDetail) -> dict[str, dict[str, Any]]:
 # --------------------------------------------------------------------------------- #
 
 _CARD_CSS = """<style>
-body { font-family: -apple-system, Helvetica, Arial, sans-serif; max-width: 900px;
-       margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
-h1 { margin-bottom: 0.25rem; }
-h2 { margin-top: 1.75rem; border-bottom: 1px solid #ddd; padding-bottom: 0.2rem; }
-.meta { color: #555; margin-bottom: 0.75rem; }
+body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 960px;
+       margin: 2.5rem auto; padding: 0 1.25rem 3rem; color: #1a1a1a; line-height: 1.5;
+       background: #fafafa; }
+header.hero { margin-bottom: 0.5rem; }
+h1 { margin: 0 0 0.5rem; font-size: 1.6rem; letter-spacing: -0.01em; }
+.pills { margin-bottom: 0.5rem; }
+.pill { display: inline-block; padding: 0.18rem 0.7rem; border-radius: 999px; font-size: 0.8rem;
+        font-weight: 600; margin-right: 0.4rem; }
+.pill-state { background: #eef0f2; color: #333; }
+.pill-good { background: #dff3e3; color: #146c2e; }
+.pill-warn { background: #fdecd2; color: #8a5300; }
+.pill-bad { background: #fbe0e0; color: #9c1f1f; }
+.pill-info { background: #dfeaf7; color: #1a5487; }
+.pill-neutral { background: #ececec; color: #444; }
+.meta { color: #5a5a5a; font-size: 0.85rem; margin-bottom: 1.25rem; }
+section.panel { background: #fff; border: 1px solid #e2e2e2; border-radius: 10px;
+                padding: 1.15rem 1.35rem 1.35rem; margin: 1.1rem 0;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); }
+section.panel > h2 { margin: 0 0 0.85rem; font-size: 1.05rem; border-bottom: 1px solid #eee;
+                      padding-bottom: 0.45rem; }
+section.panel h3 { font-size: 0.95rem; margin: 1.1rem 0 0.4rem; }
 .flag { display: inline-block; background: #b02a2a; color: #fff; padding: 0.1rem 0.5rem;
         border-radius: 3px; margin-right: 0.4rem; font-size: 0.85rem; }
-.note { color: #a05a00; background: #fff6e5; border: 1px solid #e8c27a; padding: 0.5rem 0.75rem;
-        border-radius: 4px; }
-table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1rem; }
-th, td { border: 1px solid #ddd; padding: 0.35rem 0.5rem; text-align: left; font-size: 0.9rem; }
-th { background: #f4f4f4; }
-tr.a-verified { background: #eaf7ec; }
-tr.a-failed { background: #fbeaea; }
+.note { color: #a05a00; background: #fff6e5; border: 1px solid #e8c27a; padding: 0.6rem 0.85rem;
+        border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+th, td { border: 1px solid #e6e6e6; padding: 0.5rem 0.65rem; text-align: left; font-size: 0.88rem; }
+th { background: #f6f7f8; font-weight: 600; }
+tr.a-verified { background: #eefaf0; }
+tr.a-failed { background: #fdecec; }
 tr.a-review_required { background: #fff6e5; }
-.tier { font-size: 0.75rem; color: #555; font-weight: normal; }
+.tier { font-size: 0.75rem; color: #5a5a5a; font-weight: normal; }
 .verify-badge { font-size: 0.75rem; padding: 0.05rem 0.4rem; border-radius: 3px; background: #0e5561; color: #fff; }
 .verify-badge.bad { background: #b02a2a; }
-pre { background: #f7f7f7; border: 1px solid #ddd; padding: 0.6rem; overflow-x: auto;
-      white-space: pre-wrap; word-break: break-word; font-size: 0.85rem; }
+pre { background: #f7f7f7; border: 1px solid #e6e6e6; padding: 0.7rem; overflow-x: auto;
+      white-space: pre-wrap; word-break: break-word; font-size: 0.85rem; border-radius: 6px; }
 .hash { font-family: monospace; }
+.summary-block { font-size: 0.92rem; }
+.summary-block .label { color: #5a5a5a; font-size: 0.78rem; text-transform: uppercase;
+                         letter-spacing: 0.04em; margin: 0.7rem 0 0.15rem; }
+ul.claims, ul.fixsteps { list-style: none; margin: 0.3rem 0 0.6rem; padding: 0; }
+ul.fixsteps li { padding-left: 1.1rem; position: relative; margin-bottom: 0.25rem; font-size: 0.9rem; }
+ul.fixsteps li::before { content: "\\2192"; position: absolute; left: 0; color: #5a5a5a; }
+ul.claims li { padding: 0.45rem 0.65rem; border-radius: 6px; margin-bottom: 0.35rem; font-size: 0.88rem; }
+ul.claims li.c-verified { background: #eefaf0; }
+ul.claims li.c-failed { background: #fdecec; }
+ul.claims li.c-review_required { background: #fff6e5; }
+ul.claims li.c-other { background: #f2f2f2; }
+ul.claims li .check-id { font-family: monospace; font-weight: 600; margin-right: 0.5rem; }
 </style>"""
+
+
+# Purely cosmetic: which pill color reads a disposition value as good/needs-a-human/
+# serious/waiting at a glance. Falls back to a neutral pill for anything not in
+# desk/policy/rules.py's DISPOSITIONS today, so a future disposition value never breaks
+# rendering, it just renders unstyled rather than colored.
+_DISPOSITION_PILL_CLASS = {
+    "auto": "pill-good",
+    "review_required": "pill-warn",
+    "escalate": "pill-bad",
+    "awaiting_evidence": "pill-info",
+}
 
 
 def _render_card(
@@ -303,16 +343,21 @@ def _render_card(
     detail: CaseDetail | None,
 ) -> str:
     esc = html.escape
+    disp_cls = _DISPOSITION_PILL_CLASS.get(case.disposition or "", "pill-neutral")
     parts: list[str] = [
         "<!doctype html><html><head><meta charset='utf-8'>",
         f"<title>Case {esc(case.id)}</title>",
         _CARD_CSS,
         "</head><body>",
+        "<header class='hero'>",
         f"<h1>Case {esc(case.id)}</h1>",
-        f"<div class='meta'>state <b>{esc(case.state.value)}</b> &middot; "
-        f"disposition <b>{esc(case.disposition or '-')}</b> &middot; "
-        f"correlation {esc(case.correlation_id)}<br>"
+        "<div class='pills'>",
+        f"<span class='pill pill-state'>{esc(case.state.value)}</span>",
+        f"<span class='pill {disp_cls}'>{esc(case.disposition or 'no disposition yet')}</span>",
+        "</div>",
+        f"<div class='meta'>correlation {esc(case.correlation_id)}<br>"
         f"created {esc(case.created_at)} &middot; updated {esc(case.updated_at)}</div>",
+        "</header>",
     ]
 
     if case.security_flags:
@@ -328,14 +373,15 @@ def _render_card(
     else:
         result = detail.result
 
-        parts.append("<h2>Custody</h2>")
+        parts.append("<section class='panel'><h2>Custody</h2>")
         parts.append(
             "<p class='note'>desk/custody is not wired into case-level intake in this build "
             "(see module docstring) -- Job A's own narrative custody scan is shown in its "
             "model input transcript below.</p>"
         )
+        parts.append("</section>")
 
-        parts.append("<h2>Verification</h2>")
+        parts.append("<section class='panel'><h2>Verification</h2>")
         if result.run is None:
             parts.append(f"<p class='note'>verify_state: {esc(result.verify_state)} -- no SAMLResponse to check.</p>")
         else:
@@ -350,9 +396,10 @@ def _render_card(
                     f"<td>{esc(r.expected or '')}</td><td>{esc(r.reason)}</td></tr>"
                 )
             parts.append("</table>")
+        parts.append("</section>")
 
         prompts = _reconstruct_prompts(detail)
-        parts.append("<h2>Reasoning</h2>")
+        parts.append("<section class='panel'><h2>Reasoning</h2>")
         any_job = False
         for letter, job in (("A", result.job_a), ("B", result.job_b), ("C", result.job_c)):
             if job is None:
@@ -370,30 +417,64 @@ def _render_card(
                 )
             else:
                 parts.append("<p class='note'>Prompt not reconstructable from cached data for this job.</p>")
-            parts.append(f"<pre class='output'>{esc(json.dumps(job.parsed, indent=2, sort_keys=True))}</pre>")
+            if letter == "C" and isinstance(job.parsed, dict) and "claims" in job.parsed:
+                # Job C's claims are the model's own per-check assertions, checked
+                # against the verifier's own results below in Grounding. Rendered as a
+                # list reusing the checks table's verified/failed/review_required
+                # color convention, rather than the raw JSON dump used for Jobs A/B,
+                # so a reader can eyeball agreement without parsing JSON by hand.
+                summary = job.parsed.get("summary")
+                root_cause = job.parsed.get("root_cause")
+                fix_steps = job.parsed.get("fix_steps") or []
+                claims = job.parsed.get("claims") or []
+                if summary:
+                    parts.append(f"<div class='summary-block'><p>{esc(summary)}</p>")
+                    parts.append(
+                        f"<div class='label'>Root cause</div><p><code>{esc(root_cause or 'none asserted')}</code></p>"
+                    )
+                    if fix_steps:
+                        parts.append("<div class='label'>Fix steps</div><ul class='fixsteps'>")
+                        parts.extend(f"<li>{esc(s)}</li>" for s in fix_steps)
+                        parts.append("</ul>")
+                    parts.append("</div>")
+                parts.append("<ul class='claims'>")
+                for c in claims:
+                    state = c.get("asserted_state", "")
+                    cls = state if state in ("verified", "failed", "review_required") else "other"
+                    parts.append(
+                        f"<li class='c-{esc(cls)}'><span class='check-id'>{esc(c.get('check_id', ''))}</span>"
+                        f"{esc(state)} &middot; {esc(c.get('text', ''))}</li>"
+                    )
+                parts.append("</ul>")
+            else:
+                parts.append(f"<pre class='output'>{esc(json.dumps(job.parsed, indent=2, sort_keys=True))}</pre>")
         if not any_job:
             parts.append("<p class='note'>No reasoning job ran for this case.</p>")
+        parts.append("</section>")
 
         if result.grounding is not None:
             g = result.grounding
-            parts.append("<h2>Grounding</h2>")
+            parts.append("<section class='panel'><h2>Grounding</h2>")
             parts.append(
-                f"<p>{'accepted' if g.accepted else 'REJECTED'} &middot; "
+                f"<p><span class='pill {'pill-good' if g.accepted else 'pill-bad'}'>"
+                f"{'accepted' if g.accepted else 'REJECTED'}</span> "
                 f"{g.claims_verified}/{g.claims_total} claims verified</p>"
             )
             if g.violations:
                 parts.append(
                     "<ul>" + "".join(f"<li>{esc(v.kind)}: {esc(v.detail)}</li>" for v in g.violations) + "</ul>"
                 )
+            parts.append("</section>")
 
-        parts.append("<h2>Policy</h2>")
+        parts.append("<section class='panel'><h2>Policy</h2>")
         parts.append(
             f"<p>disposition <b>{esc(detail.decision.disposition)}</b> "
             f"(policy v{esc(detail.decision.policy_version)})<br>"
             f"matched rules: {esc(', '.join(detail.decision.matched_rules) or '-')}</p>"
         )
+        parts.append("</section>")
 
-    parts.append("<h2>Approvals</h2>")
+    parts.append("<section class='panel'><h2>Approvals</h2>")
     if approvals:
         parts.append(
             "<table class='approvals'><tr><th>approver</th><th>decision</th>"
@@ -407,8 +488,9 @@ def _render_card(
         parts.append("</table>")
     else:
         parts.append("<p class='note'>No approvals recorded yet.</p>")
+    parts.append("</section>")
 
-    parts.append("<h2>Trace</h2>")
+    parts.append("<section class='panel'><h2>Trace</h2>")
     parts.append(f"<p>chain {'valid' if chain_valid else 'INVALID'} &middot; {len(trace)} events</p>")
     parts.append("<table class='trace'><tr><th>seq</th><th>stage</th><th>at</th><th>hash</th></tr>")
     for e in trace:
@@ -417,6 +499,7 @@ def _render_card(
             f"<td class='hash'>{esc(e.hash[:16])}&hellip;</td></tr>"
         )
     parts.append("</table>")
+    parts.append("</section>")
 
     parts.append("</body></html>")
     return "".join(parts)
