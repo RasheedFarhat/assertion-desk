@@ -123,29 +123,29 @@ The implementation details and dependency boundaries are mapped in [Architecture
 
 ## Measured, not marketed
 
-These results come from the committed 2026-08-17 run: 50 executable cases out of 51 corpus entries, with one explicitly documented generator gap.
+These results come from two committed runs against the same 50 executable cases (of 51 corpus entries, with one explicitly documented generator gap): the 2026-08-17 local-fallback pass (`qwen3:1.7b` via Ollama) and the 2026-08-19 live Gemini pass (`gemini-3.1-flash-lite`, not the flagship — see the warning below).
 
-| Measurement | Result | What it means |
-|---|---:|---|
-| AI-assisted root-cause accuracy | **65.0%** (26/40) | Below the 85% target; the failed threshold is intentionally visible. |
-| Deterministic-only root-cause baseline | **90.0%** (36/40) | The simpler path currently outperforms the model-assisted path by 25 points. |
-| Deterministic disposition accuracy | **94.0%** (47/50) | Three known mismatches, zero unexpected mismatches. |
-| Ambiguous-case refusal | **100%** (2/2) | Withheld evidence did not produce a guessed root cause. |
-| Malformed-input handling | **100%** (2/2) | Both malformed responses became named parse errors, not crashes. |
-| Secret patterns in stored prompts | **0 / 145** | An independent scanner found no JWT, bearer, session-cookie, or private-key pattern. |
-| Grounding rejection rate | **25.0%** (10/40) | One in four model-produced Job C outputs was withheld for violating the grounding rules. |
-| Injection resistance with a live prompt path | **1 / 1** | Positive evidence, but far too small a sample to generalize. |
+| Measurement | `qwen3:1.7b` | `gemini-3.1-flash-lite` | What it means |
+|---|---:|---:|---|
+| AI-assisted root-cause accuracy | 65.0% (26/40) | **72.5%** (29/40) | Both below the 85% target; the failed threshold is intentionally visible. |
+| Deterministic-only root-cause baseline | 90.0% (36/40) | 90.0% (36/40) | Identical by construction (no LLM in this path) — the simpler path outperforms *both* model-assisted passes. |
+| Deterministic disposition accuracy | 94.0% (47/50) | 94.0% (47/50) | Three known mismatches, zero unexpected mismatches. |
+| Ambiguous-case refusal | 100% (2/2) | 100% (2/2) | Withheld evidence did not produce a guessed root cause. |
+| Malformed-input handling | 100% (2/2) | 100% (2/2) | Both malformed responses became named parse errors, not crashes. |
+| Secret patterns in stored prompts | 0 / 145 | 0 / 145 | An independent scanner found no JWT, bearer, session-cookie, or private-key pattern. |
+| Grounding rejection rate | 25.0% (10/40) | **0.0%** (0/42) | One in four `qwen3` Job C outputs was withheld for violating grounding rules; flash-lite's were all accepted. |
+| Injection resistance, all payloads | 4 / 4 resisted | 4 / 4 resisted | One (S3) has a real live prompt path; the other three are structurally inapplicable, so a pass reflects absence of a path more than demonstrated resistance. |
 
 > [!WARNING]
-> These are numbers for one live pass through the local `qwen3:1.7b` Ollama fallback, not Gemini. The run is reproducible offline, but it is not a repeated-run variance study, a production benchmark, or evidence of general injection resistance. Read the [full measurements](docs/MEASUREMENTS.md) and [committed metrics](eval/runs/20260817T044253Z/metrics.json) before interpreting the headline figures.
+> The `gemini-3.1-flash-lite` numbers are a real, live measurement — not the flagship `gemini-3.6-flash` the pipeline defaults to. The flagship's free-tier quota is a hard 20 requests/day/project, far short of a full pass; flash-lite was substituted via an env override for this run only. Neither run is a repeated-run variance study, a production benchmark, or evidence of general injection resistance at scale. Read the [full measurements](docs/MEASUREMENTS.md), [qwen3 metrics](eval/runs/20260817T044253Z/metrics.json), and [Gemini metrics](eval/runs/20260819T051200Z_gemini_flash_lite/metrics.json) before interpreting the headline figures.
 
-The most important result is the uncomfortable one: the model-assisted path is not accurate enough yet. Nine of its 14 misses were the grounding layer declining to publish an answer, and five were a repeatable model bias toward a real but less specific signature check. Those causes are named rather than tuned away.
+The most important result is the uncomfortable one, and it held across both models: the AI-assisted path is not accurate enough yet, and is less accurate at root-cause naming than the deterministic checks alone. `qwen3`'s misses skewed toward the grounding layer declining to guess and a repeatable bias toward one specific check; `gemini-3.1-flash-lite`'s misses are different but equally systematic — a consistent cert-expiry/condition-expiry mix-up and a complete failure to ever name the missing-NameID check across all five phrasings of that case. Different model, different failure mode, same conclusion: named rather than tuned away.
 
 ## Honest project status
 
 | Implemented and exercised | Demo-scoped or partial | Not implemented |
 |---|---|---|
-| Fail-closed HAR/XML/prose custody scanners<br/>20 deterministic SAML checks<br/>Three schema-bound model jobs<br/>Grounding veto and deterministic policy<br/>Case lifecycle and hash-linked trace<br/>Offline fixture replay and CI gates | `POST /cases` wraps frozen corpus cases<br/>SQLite stores Case, TraceEvent, and Approval only<br/>Pipeline detail is cached in process<br/>n8n workflows require manual import and credentials<br/>Gemini is configured as primary but remains unmeasured | Live customer artifact upload<br/>Complete durable evidence/model storage<br/>Customer-reply artifact re-ingestion<br/>Real ITSM integration<br/>Authentication or multi-tenancy<br/>Production WSGI deployment<br/>OIDC, SCIM, or WS-Fed |
+| Fail-closed HAR/XML/prose custody scanners<br/>20 deterministic SAML checks<br/>Three schema-bound model jobs<br/>Grounding veto and deterministic policy<br/>Case lifecycle and hash-linked trace<br/>Offline fixture replay and CI gates | `POST /cases` wraps frozen corpus cases<br/>SQLite stores Case, TraceEvent, and Approval only<br/>Pipeline detail is cached in process<br/>n8n workflows require manual import and credentials<br/>Gemini is configured as primary; measured so far only via a free-tier `gemini-3.1-flash-lite` substitute, not the flagship | Live customer artifact upload<br/>Complete durable evidence/model storage<br/>Customer-reply artifact re-ingestion<br/>Real ITSM integration<br/>Authentication or multi-tenancy<br/>Production WSGI deployment<br/>OIDC, SCIM, or WS-Fed |
 
 > [!IMPORTANT]
 > The web API is a corpus-backed demonstration, not live intake. The custody package is implemented and independently tested, but full artifact-bundle custody is not wired into `POST /cases`; only Job A's narrative passes through custody on the current case path.

@@ -309,7 +309,8 @@ it is now driven by two identified, distinct causes rather than one undifferenti
 correctly declining to guess (9 of 14 misses, arguably not a defect at all) and a specific,
 repeatable model bias toward citing `SAML-SIG-01` (5 of 14 misses, a real target for Phase 5 prompt
 work). It also does not prove anything about Gemini's accuracy, since no Gemini call occurred in
-this run, and it does not prove general injection resistance — n=4 total adversarial cases is a
+this run — see "Gemini measurement, 2026-08-19" below for that — and it does not prove general
+injection resistance — n=4 total adversarial cases is a
 small sample, even though the two genuinely-informative results in it (S3 resisted, S4 shown to
 have had no observable effect) are both positive.
 
@@ -318,10 +319,82 @@ the plan called for — schema-bound reasoning, a real grounding veto, a fixture
 fallback chain that never crashes — and this run proves those pieces work together without error,
 with the additional, previously-missing proof that the whole result is exactly reproducible
 offline. Fixing the deterministic tie-break turned an unreadable 25%/12.5% pair of numbers into a
-legible 65%/90% pair with a specific, well-understood 25-point gap. That gap is not yet closed,
-tested against a local 1.7B fallback model rather than the system's intended Gemini primary. A
-real Gemini run and closing the `SAML-SIG-01` bias are the two highest-leverage next steps, both
-explicitly deferred past this cutoff rather than rushed in to make a better-looking number.
+legible 65%/90% pair with a specific, well-understood 25-point gap. That gap was tested against a
+local 1.7B fallback model rather than the system's intended Gemini primary — the next section
+closes that specific gap.
+
+---
+
+## Gemini measurement, 2026-08-19 (`gemini-3.1-flash-lite`, not the flagship)
+
+**Generated 2026-08-19, from `eval/runs/20260819T051200Z_gemini_flash_lite/{records.json,
+metrics.json,report.md}`, committed to the repo.** This is a real, live, schema-constrained-output
+pass through the Google AI Developer API against all 50 non-skipped cases — the first Gemini
+measurement this project has published. It is **not** a `gemini-3.6-flash` (flagship) run: the
+flagship's free-tier quota is a hard `20 requests/day/project`
+(`GenerateRequestsPerDayPerProjectPerModel-FreeTier`), nowhere near the ~140 calls one full pass
+needs, and enabling Cloud Billing to raise it was declined. `gemini-3.1-flash-lite` was substituted
+via the `GEMINI_MODEL_ID` env override added to `desk/reason/client.py` for exactly this reason; it
+passed the same `response_json_schema`-constrained-output check the flagship does before being
+trusted for this run. Every case's `job_a`/`job_b`/`job_c` shows `tier_used: "fixture"` for all 138
+jobs that ran (0 fell through to the deterministic template), and that fixture cache was populated
+entirely by genuine live calls, confirmed by inspecting every cached file's `provider`/`model_id`
+before this run replayed them — see the Verification block below to reproduce that claim yourself.
+**Report which model actually produced a number; a flash-lite result is not a flagship result.**
+
+| | `qwen3:1.7b` (2026-08-17) | `gemini-3.1-flash-lite` (2026-08-19) |
+|---|---|---|
+| AI-assisted root-cause accuracy | 65.0% (26/40) | **72.5% (29/40)** |
+| Deterministic-only root-cause accuracy | 90.0% (36/40) | 90.0% (36/40) — identical by construction, no LLM in this path |
+| Gap vs. deterministic-only | −25.0 pts | **−17.5 pts** |
+| Grounding rejection rate | 25.0% (10/40 graded) | **0.0% (0/42 graded)** |
+| Injection resistance (live-path S3 + structurally-inapplicable S1/S2/S4) | 4/4 resisted | 4/4 resisted |
+| Secret leakage to prompt | 0/145 fixtures | 0/145 fixtures |
+
+**The gap narrowed but did not close, and it did not close for a new reason.** `gemini-3.1-flash-lite`
+does not repeat qwen3's `SAML-SIG-01`-citing bias — it beats the deterministic-only baseline on the
+two `artifact_mutation` cases (`stripped_relaystate`, `wrong_binding`) where the right answer is no
+root cause at all, the same behavior that made qwen3 look better than deterministic-only there too.
+Instead it has two of its own, different, equally systematic misses:
+
+- **`cert_expired` family, 4 of 5 variants** (`cert_expired`, `__hostile`, `__non_native`, `__vague`
+  — only `__confident_misdiagnosis` gets it right): calls it `SAML-COND-01` (generic assertion
+  condition/expiry) instead of `SAML-CERT-01` (certificate expiry specifically). The deterministic
+  tier gets all 5 right from the same verify-check evidence, so this is a model reasoning failure,
+  not a missing signal.
+- **`missing_nameid` family, 5 of 5 variants**: never once returns `SAML-NAMEID-01`; guesses
+  `SAML-ATTR-01` or `SAML-SIG-01` instead, in every phrasing from `__vague` to `__hostile`.
+
+Net effect: flash-lite gains 2 cases deterministic-only misses and loses 9 deterministic-only gets
+right, for a net −7 versus the 90% deterministic-only baseline — **the AI-assisted tier is still
+less accurate at root-cause naming than not calling an LLM at all**, on this corpus, with this
+model. That is the load-bearing, unflattering finding of this run and it should not be read past
+what it says: one model, one pass, k=1 (no repeated-sampling disagreement-rate data collected),
+against a 50-case corpus.
+
+**What did improve, genuinely:** zero grounding rejections (vs. qwen3's 25%) — every graded Job C
+claim flash-lite made was accepted as evidence-backed, and it reached the live/fixture tier for 2
+more Job C cases than qwen3 did (42 vs. 40) rather than falling back to the deterministic template.
+All 4 live-testable injection payloads were resisted, matching qwen3's result — this project's
+grounding veto and fallback cascade hold up against a second, genuinely different model, not just
+the one they were built against.
+
+### Verification
+
+```
+# This run cannot be regenerated with a bare `make eval` against the committed fixtures/ --
+# it requires a GEMINI_API_KEY, GEMINI_MODEL_ID=gemini-3.1-flash-lite, and an empty
+# --fixtures-dir the first time (the qwen3 fixtures in fixtures/ would otherwise short-circuit
+# every Job A/B/C call before Gemini is ever tried -- see desk/reason/fallback.py's Tier-0
+# fixture-check-across-all-clients loop). What IS reproducible offline, same as the qwen3 run
+# above, is replaying the committed records.json:
+.venv/bin/python3 -m eval.report eval/runs/20260819T051200Z_gemini_flash_lite/records.json \
+  --out eval/runs/20260819T051200Z_gemini_flash_lite/report.md \
+  --metrics-out eval/runs/20260819T051200Z_gemini_flash_lite/metrics.json
+```
+
+Full per-case tables live in `eval/runs/20260819T051200Z_gemini_flash_lite/report.md` and
+`metrics.json`, in the same format as the qwen3 run above.
 
 ---
 

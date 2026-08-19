@@ -47,14 +47,26 @@ class ReasonClient(Protocol):
 
 
 class GeminiClient:
-    """gemini-2.5-flash via the Google AI Developer API. Requires GEMINI_API_KEY.
+    """gemini-3.6-flash via the Google AI Developer API. Requires GEMINI_API_KEY.
     Temperature 0 for all three jobs (plan section 16) -- these are extraction and
     grounded-explanation tasks, not creative ones, and determinism matters for the
-    k=3 disagreement-rate metric.
+    k=3 disagreement-rate metric. Was gemini-2.5-flash until that model was retired
+    from new-user access (confirmed via a live 404 pointing at this replacement,
+    2026-08-19); response_json_schema-constrained output re-verified against
+    JOB_A_SCHEMA on the new model before switching.
+
+    model_id defaults to the flagship model but is overridable via GEMINI_MODEL_ID --
+    added because the flagship's free-tier daily quota is a hard 20
+    requests/day/project (GenerateRequestsPerDayPerProjectPerModel-FreeTier, confirmed
+    live 2026-08-19), nowhere near the ~150 calls one eval.run pass needs, while
+    gemini-3.1-flash-lite's free daily quota is high enough to cover a full pass and
+    passes the same schema-constrained-output check. A run using the override is a
+    real Gemini measurement, just not the flagship's -- report which model_id produced
+    a given eval/runs/ result rather than presenting it as the flagship number.
     """
 
-    def __init__(self, model_id: str = "gemini-2.5-flash", api_key: str | None = None) -> None:
-        self.model_id = model_id
+    def __init__(self, model_id: str | None = None, api_key: str | None = None) -> None:
+        self.model_id = model_id or os.environ.get("GEMINI_MODEL_ID", "gemini-3.6-flash")
         self._api_key = api_key if api_key is not None else os.environ.get("GEMINI_API_KEY")
         self._client = None  # constructed lazily, only once we know a key exists
 

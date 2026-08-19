@@ -1,0 +1,55 @@
+{
+  "case_id": "negative_control",
+  "check_counts": null,
+  "check_results": null,
+  "error": null,
+  "final_root_cause": null,
+  "grounding": null,
+  "injection": null,
+  "job_a": {
+    "accepted": true,
+    "input_tokens": 435,
+    "instruction_signals": [],
+    "job": "A",
+    "latency_ms": 1248.4761669766158,
+    "output_tokens": 142,
+    "parsed": {
+      "already_tried": [
+        "tried logging in three times",
+        "checked caps lock"
+      ],
+      "onset": "starting right now",
+      "onset_confidence": 1.0,
+      "recent_change": null,
+      "recent_change_confidence": 1.0,
+      "reporter_role": null,
+      "reporter_role_confidence": 0.0,
+      "scope": "single_user",
+      "scope_confidence": 1.0,
+      "wrong_belief": null,
+      "wrong_belief_confidence": 0.0
+    },
+    "schema_violations": [],
+    "tier_used": "fixture"
+  },
+  "job_b": null,
+  "job_c": null,
+  "label": {
+    "case_id": "negative_control",
+    "category": "live_capture",
+    "difficulty": "normal",
+    "expected_disposition": "review_required",
+    "expected_root_cause": null,
+    "expects_parse_failure": false,
+    "fault_id": "negative_control",
+    "har_ref": "case_local",
+    "injection": null,
+    "no_check_coverage_reason": "No SAMLResponse artifact exists in this case (the IdP rejected the credential before producing one), so no check in desk/verify/checks/ has anything to run against. Correct behavior is a case state of out_of_scope / no_saml_response, never a fabricated check result.",
+    "no_saml_response_reason": "No SAMLResponse artifact exists in this case (the IdP rejected the credential before producing one), so no check in desk/verify/checks/ has anything to run against. Correct behavior is a case state of out_of_scope / no_saml_response, never a fabricated check result.",
+    "register": "precise",
+    "target_check_ids": []
+  },
+  "stored_parity_ok": true,
+  "verify_error": null,
+  "verify_state": "no_saml_response"
+}
