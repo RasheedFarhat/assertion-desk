@@ -64,14 +64,14 @@ jobs:
 
           IGNORE = {"generated_from", "replay_only"}
 
-          baseline = json.load(open("eval/runs/20260817T044253Z/metrics.json"))
+          baseline = json.load(open("eval/runs/20260819T085104Z_qwen3_promptfix/metrics.json"))
           fresh = json.load(open("eval/runs/ci-replay/metrics.json"))
 
           b = {k: v for k, v in baseline.items() if k not in IGNORE}
           f = {k: v for k, v in fresh.items() if k not in IGNORE}
 
           if b != f:
-              print("METRICS DRIFT vs eval/runs/20260817T044253Z/metrics.json "
+              print("METRICS DRIFT vs eval/runs/20260819T085104Z_qwen3_promptfix/metrics.json "
                     "(docs/MEASUREMENTS.md's committed run)")
               for key in sorted(set(b) | set(f)):
                   if b.get(key) != f.get(key):
