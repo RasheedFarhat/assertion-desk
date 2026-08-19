@@ -1,0 +1,13 @@
+{
+  "input_tokens": 269,
+  "key": "0bd2b61bb007ad6d1d544d1a0e7f5e5df9f6b1db3fc055a2e3f18a1ba1ed7779",
+  "latency_ms": 4399.0795409772545,
+  "model_id": "gemini-3.1-flash-lite",
+  "output_tokens": 102,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='new_users_only', onset='since last week', already_tried=['confirmed existing users still log in fine'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "c947c2e71f809d18462b8ed785e800b5b47e0e3e56e4183bef49487b6b9c5e3d",
+  "provider": "gemini",
+  "recorded_at": 1787129437.00547,
+  "schema_version": "v1",
+  "text": "{\n  \"subject\": \"Action Required: SAML authentication logs for new user login issues\",\n  \"body\": \"We are investigating the login issues reported for new users since last week. To determine if these are SP-initiated flows that require an InResponseTo value, please provide the SP request logs corresponding to these failed attempts. This will help us verify the authentication handshake process.\",\n  \"requested_artifacts\": [\n    \"sp_request_log\"\n  ]\n}"
+}

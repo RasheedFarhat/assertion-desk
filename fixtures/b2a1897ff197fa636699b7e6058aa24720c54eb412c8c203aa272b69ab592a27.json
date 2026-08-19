@@ -1,0 +1,13 @@
+{
+  "input_tokens": 275,
+  "key": "b2a1897ff197fa636699b7e6058aa24720c54eb412c8c203aa272b69ab592a27",
+  "latency_ms": 30389.99666692689,
+  "model_id": "gemini-3.6-flash",
+  "output_tokens": 106,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='all_users', onset='starting starting today', already_tried=['restarted the identity server', 'asked two users to try a different browser'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "6a9114aa50a571d61b29a4aee834234dfab9f0c55d7c517c2fabfd6f7bf9388d",
+  "provider": "gemini",
+  "recorded_at": 1787128605.811096,
+  "schema_version": "v1",
+  "text": "{\"subject\":\"SAML Authentication Issue: Service Provider Request Logs Required\",\"body\":\"We are investigating the login issue affecting all users starting today. Our verification system detected missing InResponseTo values in the SAML response data, which occurs when we cannot match the response to an initial request. To confirm whether these logins were SP-initiated or IdP-initiated and trace the original request details, please provide the Service Provider (SP) request logs for a failed login attempt.\",\"requested_artifacts\":[\"sp_request_log\"]}"
+}

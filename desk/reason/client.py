@@ -122,13 +122,23 @@ class OllamaClient:
     """Local fallback via Ollama's HTTP API. No API key; unavailable means the daemon
     isn't reachable, not that credentials are missing. Confirmed working end-to-end in
     this environment against qwen3:1.7b, including the `format` JSON-schema parameter,
-    once the Docker VM's memory pressure was resolved (see docs/PHASE4_NOTES.md)."""
+    once the Docker VM's memory pressure was resolved (see docs/PHASE4_NOTES.md).
+
+    timeout_seconds defaults to 180, not 60 -- 60 was enough before
+    desk/reason/prompts.py's Job C root-cause-disambiguation guidance was added
+    (2026-08-19), but that longer prompt pushed qwen3:1.7b's "thinking" generation past
+    60s on roughly 40% of the corpus during a real regeneration run (confirmed directly:
+    `HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read
+    timeout=60.0)` on assertion_expired's Job C call specifically), silently and validly
+    falling through to the deterministic template rather than raising -- correct
+    fallback behavior, but not what a live run should be settling for by default when
+    180s reliably succeeds instead."""
 
     def __init__(
         self,
         model_id: str = "qwen3:1.7b",
         base_url: str = "http://localhost:11434",
-        timeout_seconds: float = 60.0,
+        timeout_seconds: float = 180.0,
     ) -> None:
         self.model_id = model_id
         self.base_url = base_url.rstrip("/")

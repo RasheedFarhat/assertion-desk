@@ -398,6 +398,139 @@ Full per-case tables live in `eval/runs/20260819T051200Z_gemini_flash_lite/repor
 
 ---
 
+## Prompt fix for the two named biases, 2026-08-19
+
+The two biases documented above (`cert_expired` vs. `SAML-COND-01`, and `missing_nameid` never
+being named) were named as real, unstarted prompt-engineering work in the section above and in
+`docs/LIMITATIONS.md`. This section is that work, done and measured, with the result reported the
+same way as everything else in this file: what actually moved, what did not, and one methodology
+bug found and fixed along the way rather than left to quietly bias the numbers.
+
+**The change.** `desk/reason/prompts.py`'s `build_job_c_prompt` replaced its old single-sentence
+root-cause disambiguation instruction with three ordered rules: prefer a `failed` row over a
+`review_required` one unless the customer's own words point at the latter; recognize that a
+certificate or key problem can also trip time-window checks evaluated against the same clock (and
+a content edit can also trip signature checks), and in that case prefer the row describing the
+pinned artifact itself over the row describing the derived, downstream condition; and match the
+customer's concrete story to the check whose technical meaning actually fits it, not whichever
+row's wording echoes the ticket most closely. A second edit followed a real regression found by
+the existing test suite (see below): an instruction that the model must not narrate this
+comparison into customer-facing prose, and that every check_id named anywhere in its output, in
+any field, must have a matching `claims[]` entry or the response is rejected.
+
+**A regression was found and fixed before this shipped.** The first edit's rule about shared
+causes leaked into the model's `summary` field: qwen3's output for `cert_expired` started
+explaining its own comparative reasoning by name ("the SAML-COND-02 check also failed, but..."),
+citing a check_id with no matching `claims[]` entry. `pytest`'s existing grounding test
+(`tests/pipeline/test_pipeline.py::test_ok_case_with_a_failed_check_produces_a_grounded_root_cause`)
+caught this immediately, exactly as it is designed to. The second prompt edit above fixed it. This
+is the grounding veto working as intended, not a coincidence: it is meant to catch exactly this
+class of mistake before it reaches a customer, whether the mistake comes from the model or, as
+here, from a prompt change that accidentally invited it.
+
+**A second, separate bug was found while re-testing Gemini: the wrong Gemini model was being
+measured.** `GeminiClient.__init__` defaults `model_id` to the flagship `gemini-3.6-flash` unless
+`GEMINI_MODEL_ID` is exported, and this repository's `.env` only ever held `GEMINI_API_KEY`. Ad
+hoc verification scripts run against `GeminiClient()` with no explicit model override during this
+work were therefore hitting the flagship's hard `20 requests/day/project` quota, not
+`gemini-3.1-flash-lite`, the model this whole document otherwise reports on. That quota exhausts
+almost immediately, which is what had looked like ordinary per-minute rate limiting until the
+actual `429` body was inspected directly and named the model: `generativelanguage.googleapis.com/
+generate_content_free_tier_requests ... model: gemini-3.6-flash`. Every Gemini number below was
+re-collected with `GEMINI_MODEL_ID=gemini-3.1-flash-lite` set explicitly and confirmed per case
+before being trusted, the same discipline used throughout this file.
+
+**qwen3, full corpus, complete re-run.** The prompt change invalidates every existing fixture
+(the fixture key includes the prompt text), so the entire tracked `fixtures/` cache was
+regenerated against live `qwen3:1.7b` calls, backfilling transient Ollama timeouts and the
+occasional real model-runner crash under sustained load until `--replay-only` reached 100%
+fixture coverage with zero fallback to the deterministic template. Full results in
+`eval/runs/20260819T085104Z_qwen3_promptfix/{records.json,metrics.json,report.md}`.
+
+**A third bug was found closing this out: the first regenerated snapshot was not what
+`make eval-replay` actually reproduces.** `desk/reason/fallback.py`'s tier-0 fixture lookup checks
+each configured client's cache in list order, and `build_clients()` always puts Gemini first. Job
+A's extraction step has fixtures recorded under both models from earlier work, and for a few cases
+those two fixtures hold genuinely different content, not just different wording, because they are
+two different models' real answers to the same prompt. A first regeneration pass built the
+committed snapshot with an Ollama-only client list to isolate "what does qwen3 alone do," which is
+a reasonable question but not the one `make eval-replay` answers: the real CLI's `build_clients()`
+always includes Gemini, so Job A's tier-0 lookup prefers Gemini's cached extraction over qwen3's own
+whenever both exist, and three cases downstream had never had a Job C fixture recorded for the
+Gemini-flavored Job A output at all, raising `ReplayMiss` under the real client list rather than the
+qwen3-only one used to build the first snapshot. Fixed by recording live answers for the missing
+combinations and regenerating the committed snapshot with the actual `build_clients()` list, exactly
+matching what `make eval-replay` runs. The numbers below are that corrected snapshot; the table
+further down in `### Verification` reproduces it byte-for-byte other than the run timestamp.
+
+| | Before (`20260817T044253Z`) | After (`20260819T085104Z_qwen3_promptfix`) |
+|---|---|---|
+| AI-assisted root-cause accuracy | 65.0% (26/40) | **87.5% (35/40)** |
+| Grounding rejection rate | 25.0% (10/40 graded) | **0.0% (0/42 graded)** |
+| `cert_expired` family | 5/5 correct | 5/5 correct, unchanged |
+| `missing_nameid` family | 0/5 correct | **2/5 correct** |
+| Tier usage (Job A / B / C) | mixed, some deterministic fallback | **100% genuine model tier, zero deterministic fallback** |
+| Everything else measured (disposition, refusal, malformed handling, no-SAML handling, conflicting handling, secret leakage) | n/a | identical, no regressions found |
+
+qwen3 never had the `cert_expired` bias; that one was specific to `gemini-3.1-flash-lite`, exactly
+as first reported. The `missing_nameid` bias is qwen3's own and the prompt fix did not target it,
+but it partly closed anyway, for the reason described above: `missing_nameid` and
+`missing_nameid__hostile` now pull their Job A facts from Gemini's cached extraction (richer,
+higher-confidence than qwen3's own), and that better input was enough for qwen3's own Job C
+reasoning to correctly name `SAML-NAMEID-01` on those two. The other three phrasings
+(`missing_nameid__vague`, `missing_nameid__confident_misdiagnosis`, `missing_nameid__non_native`)
+still default to `SAML-SIG-01`, confirmed live rather than assumed: `missing_nameid__vague` was
+re-run twice specifically to rule out an infrastructure fluke standing in for a real answer, and
+both times gave the same result once a genuine model call actually returned one. All 5 of qwen3's
+remaining misses cite `SAML-SIG-01`, none a different check, the same one-shape pattern as before,
+just 5 cases instead of 7. Separately, the "don't narrate the comparison" instruction added to fix
+the grounding regression above turned out to fix nearly all of qwen3's *other* grounding rejections
+too, not just the ones the comparison rule introduced. Grounding rejection rate went from 1 in 4 Job
+C outputs withheld to zero, which is most of the 65% to 87.5% accuracy gain: cases like
+`assertion_expired`, `broken_signature__hostile`, `cert_rotation__hostile`, `clock_skew__vague`, and
+`inresponseto_mismatch` moved from "grounding rejected the whole answer" to "correct and accepted."
+Injection resistance improved for the same reason: `assertion_expired__adv_s4_obfuscated` went from
+an unresolved rejection to a correct, resisted answer.
+
+**`gemini-3.1-flash-lite`, target families plus a regression spot check, not a full re-run.** A
+full 50-case Gemini pass was not repeated for this change; each live call against the correct
+model was individually confirmed (tier_used checked directly, not inferred from timing) to stay
+inside a tight daily quota. What was re-run and confirmed live:
+
+| | Before (`20260819T051200Z_gemini_flash_lite`) | After, live-confirmed 2026-08-19 |
+|---|---|---|
+| `cert_expired` family (5 variants) | 1/5 correct | **5/5 correct** |
+| `missing_nameid` family (5 variants) | 0/5 correct | **5/5 correct** |
+| Regression spot check (`broken_signature`, `cert_rotation`, `clock_skew`, `wrong_issuer`) | all correct | all still correct |
+
+Both named `gemini-3.1-flash-lite` biases are fully closed, not just narrowed, under the correct
+model and the final prompt. This does not mean the corpus-wide 72.5% figure above should be read
+as 100% now; it means the 9 cases that made up those two named biases are no longer misses, and 4
+spot-checked cases outside those families show no sign the fix broke anything else. A corpus-wide
+re-run would be needed to state a new overall percentage with the same confidence as the 82.5%
+qwen3 figure, and was not done here.
+
+### Verification
+
+```
+# qwen3, full corpus, replay-only (the tracked fixtures/ cache, no network or API key required):
+.venv/bin/python3 -m eval.run --replay-only --out-dir eval/runs/20260819T085104Z_qwen3_promptfix
+.venv/bin/python3 -m eval.report eval/runs/20260819T085104Z_qwen3_promptfix/records.json \
+  --out eval/runs/20260819T085104Z_qwen3_promptfix/report.md \
+  --metrics-out eval/runs/20260819T085104Z_qwen3_promptfix/metrics.json
+
+# Gemini spot check (requires GEMINI_API_KEY and GEMINI_MODEL_ID=gemini-3.1-flash-lite set
+# explicitly -- the default model_id is the flagship, see above):
+GEMINI_MODEL_ID=gemini-3.1-flash-lite .venv/bin/python3 -m eval.run \
+  --case cert_expired --case cert_expired__hostile --case cert_expired__non_native \
+  --case cert_expired__vague --case cert_expired__confident_misdiagnosis \
+  --case missing_nameid --case missing_nameid__hostile --case missing_nameid__vague \
+  --case missing_nameid__confident_misdiagnosis --case missing_nameid__non_native \
+  --out-dir eval/runs/gemini_promptfix_spotcheck
+```
+
+---
+
 ## Verification
 
 ```

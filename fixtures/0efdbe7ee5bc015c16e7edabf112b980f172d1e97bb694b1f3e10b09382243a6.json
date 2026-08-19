@@ -1,0 +1,13 @@
+{
+  "input_tokens": 269,
+  "key": "0efdbe7ee5bc015c16e7edabf112b980f172d1e97bb694b1f3e10b09382243a6",
+  "latency_ms": 6051.311542047188,
+  "model_id": "gemini-3.6-flash",
+  "output_tokens": 99,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='subset', onset='since a directory sync last night', already_tried=['manually re-added one affected user'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "b3fb5048d81db363469fa38b51c18c4ce2a7a176155a9f1f614b515a52e5053b",
+  "provider": "gemini",
+  "recorded_at": 1787128984.392543,
+  "schema_version": "v1",
+  "text": "{\"subject\":\"Request for Service Provider Request Logs to verify SAML login flow\",\"body\":\"To help us investigate the SAML login issues affecting a subset of users since last night's directory sync, we need to verify whether these authentication attempts are SP-initiated or IdP-initiated. Please provide your Service Provider request logs (sp_request_log) covering the affected login attempts so we can confirm the expected InResponseTo values.\",\"requested_artifacts\":[\"sp_request_log\"]}"
+}

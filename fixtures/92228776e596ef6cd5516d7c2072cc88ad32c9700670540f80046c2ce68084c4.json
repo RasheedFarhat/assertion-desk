@@ -1,0 +1,13 @@
+{
+  "input_tokens": 265,
+  "key": "92228776e596ef6cd5516d7c2072cc88ad32c9700670540f80046c2ce68084c4",
+  "latency_ms": 1288.0608749110252,
+  "model_id": "gemini-3.1-flash-lite",
+  "output_tokens": 97,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='single_user', onset='yesterday', already_tried=['had the user restart their laptop'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "00cc7ac11db1a60dc86f9dd8a54c8bc56fcde41485ad42125345e193d699bf54",
+  "provider": "gemini",
+  "recorded_at": 1787129426.211071,
+  "schema_version": "v1",
+  "text": "{\n  \"subject\": \"Action Required: Troubleshooting SAML authentication issues\",\n  \"body\": \"We are investigating the authentication errors reported yesterday. To determine why the SAML responses are missing the expected InResponseTo values, we need to review the service provider's request logs. Please provide the SP request logs corresponding to the time of the failed login attempts.\",\n  \"requested_artifacts\": [\n    \"sp_request_log\"\n  ]\n}"
+}

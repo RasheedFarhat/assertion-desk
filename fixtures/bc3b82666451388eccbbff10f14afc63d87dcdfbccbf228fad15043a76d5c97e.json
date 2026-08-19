@@ -1,0 +1,13 @@
+{
+  "input_tokens": 269,
+  "key": "bc3b82666451388eccbbff10f14afc63d87dcdfbccbf228fad15043a76d5c97e",
+  "latency_ms": 1272.098083049059,
+  "model_id": "gemini-3.1-flash-lite",
+  "output_tokens": 106,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='all_users', onset='around 2pm today', already_tried=['rolled back the WAF change partially'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "f857a60657cd1b34acd43d8dfa66337cbddac695867f160695a40961e978f477",
+  "provider": "gemini",
+  "recorded_at": 1787129416.2718148,
+  "schema_version": "v1",
+  "text": "{\n  \"subject\": \"Request for SP Request Logs to troubleshoot SAML authentication\",\n  \"body\": \"We are investigating the SAML authentication issues reported around 2pm today. To determine if these are SP-initiated flows that require an InResponseTo value, please provide the SP request logs corresponding to the affected login attempts. This will help us verify if the service provider is correctly initiating the requests.\",\n  \"requested_artifacts\": [\n    \"sp_request_log\"\n  ]\n}"
+}

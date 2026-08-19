@@ -1,0 +1,13 @@
+{
+  "input_tokens": 273,
+  "key": "a963c08550a30a76fed74c5bd69a79d0ea4565bcfdd7e242c96a93ae4ed1ec9a",
+  "latency_ms": 4915.354624856263,
+  "model_id": "gemini-3.1-flash-lite",
+  "output_tokens": 99,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='all_users', onset='today', already_tried=['restarted the identity server', 'asked two users to try a different browser'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "c30fb655e2b9489201d1efbfa44b0b422ec062454b842b79775c5ab10d9ae22a",
+  "provider": "gemini",
+  "recorded_at": 1787129276.546159,
+  "schema_version": "v1",
+  "text": "{\n  \"subject\": \"Request for SP Request Logs to troubleshoot SAML authentication\",\n  \"body\": \"We are investigating the SAML authentication errors occurring today for your users. To determine if these are SP-initiated flows that require an InResponseTo value, please provide the SP request logs from your service provider. This will allow us to verify the expected request parameters.\",\n  \"requested_artifacts\": [\n    \"sp_request_log\"\n  ]\n}"
+}

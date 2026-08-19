@@ -7,18 +7,26 @@ shows it, not softened into marketing hedging. Nothing here is deferred silently
 
 ## Accuracy
 
-- **AI-assisted root-cause accuracy fails its 85% threshold on both models measured so far,
-  and trails the deterministic-only baseline (90.0%, 36/40, identical in both runs since no
-  LLM sits in that path) either way: 65.0% (26/40) for `qwen3:1.7b`, 72.5% (29/40) for
-  `gemini-3.1-flash-lite`.** This is the single most important number in the project and it is
-  a failed target on every model tried, not a met one. Full breakdown in
-  `docs/MEASUREMENTS.md`. The two models fail for different, equally systematic reasons, not
-  the same one: `qwen3` defaults to citing `SAML-SIG-01` when a more specific check is the
-  actual cause (5 of 14 misses); `gemini-3.1-flash-lite` confuses certificate expiry with
-  generic assertion-condition expiry in 4 of 5 `cert_expired` variants, and never once names
-  `SAML-NAMEID-01` across all 5 `missing_nameid` variants. Closing either bias is real,
-  unstarted prompt-engineering work — a fix tuned against one model's specific failure mode is
-  not guaranteed to transfer to the other's.
+- **AI-assisted root-cause accuracy now clears its 85% threshold for `qwen3:1.7b`, but still
+  trails the deterministic-only baseline (90.0%, 36/40, identical in both runs since no LLM
+  sits in that path), and Gemini's only measured number still falls short of both: 87.5%
+  (35/40) for `qwen3:1.7b` after a 2026-08-19 prompt fix (was 65.0%, 26/40), 72.5% (29/40) for
+  `gemini-3.1-flash-lite`'s full-corpus baseline (the same prompt fix fully closed both named
+  biases below for this model, confirmed live, but was not re-run across the full 50-case
+  corpus, so no new corpus-wide percentage is claimed for it). Full breakdown, including the
+  fix itself, a regression it introduced and then fixed, and a fixture-priority bug found while
+  finishing the qwen3 re-run, in the "Prompt fix for the two named biases" section of
+  `docs/MEASUREMENTS.md`. The two models' remaining misses are no longer the same shape they
+  were: `gemini-3.1-flash-lite`'s two named biases (confusing certificate expiry with generic
+  assertion-condition expiry; never naming `SAML-NAMEID-01`) are both fully closed now. `qwen3`
+  still has one, unclosed by this fix as a deliberate target, though it partly closed anyway as
+  a side effect: it defaults to citing `SAML-SIG-01` on NameID- and encryption-adjacent checks,
+  which is now all 5 of its remaining 5 misses, not a partial pattern among many, down from 7
+  because 2 of the 5 `missing_nameid` phrasings now correctly name `SAML-NAMEID-01`. What mainly
+  closed for `qwen3`, as a side effect of the fix rather than its target, was most of its
+  grounding-rejection problem (25.0% down to 0.0%), which was the larger share of its accuracy
+  gain, not the two named biases, which is why closing a bias for one model does not predict
+  what a shared prompt change actually does for the other.
 - **The only Gemini number in this repository is `gemini-3.1-flash-lite`, not the flagship
   `gemini-3.6-flash` the pipeline defaults to.** The flagship's free-tier quota is a hard 20
   requests/day/project, far short of a full corpus pass, and enabling Cloud Billing to raise it

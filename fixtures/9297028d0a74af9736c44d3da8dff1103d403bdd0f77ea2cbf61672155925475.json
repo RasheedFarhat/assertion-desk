@@ -1,0 +1,13 @@
+{
+  "input_tokens": 262,
+  "key": "9297028d0a74af9736c44d3da8dff1103d403bdd0f77ea2cbf61672155925475",
+  "latency_ms": 30123.77666705288,
+  "model_id": "gemini-3.6-flash",
+  "output_tokens": 116,
+  "prompt": "You are writing a short, specific request to a customer's IT admin for the exact evidence a support system could not verify. Do not guess at a diagnosis. Do not apologize at length. Be precise about what is needed and why, in plain language a non-developer IT admin can act on.\n\nUnresolved verification gaps (deterministic, already computed -- you may not add, remove, or reinterpret these):\n- SAML-INRESP-01: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n- SAML-INRESP-02: no expected InResponseTo value was supplied by the SP (IdP-initiated flows legitimately have none; SP-initiated flows should) (would be resolved by: sp_request_log)\n\nWhat the customer already told us (extracted, not verified): scope='all_users', onset='starting today', already_tried=['looked into it'].\n\nrequested_artifacts must be drawn only from the artifact kinds named above (the same closed set the gaps reference) -- do not invent an artifact kind that is not one of them. Respond with JSON matching the required schema only.",
+  "prompt_sha256": "796401fdaf83c1d295918834c24f511033ce4a0e74c1e8f1354222283d2a8c32",
+  "provider": "gemini",
+  "recorded_at": 1787128861.930273,
+  "schema_version": "v1",
+  "text": "{\n  \"subject\": \"SAML Verification: Service Provider Request Logs Required\",\n  \"body\": \"To investigate the SAML authentication issue affecting all users starting today, we need additional evidence to verify the login request flow. Specifically, we require the Service Provider (SP) request logs to check the expected InResponseTo values and determine if the flow was SP-initiated or IdP-initiated. Please provide the SP request logs covering the impacted login attempts.\",\n  \"requested_artifacts\": [\n    \"sp_request_log\"\n  ]\n}"
+}
