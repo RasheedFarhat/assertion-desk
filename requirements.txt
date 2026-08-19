@@ -19,7 +19,7 @@ packaging==26.3
 playwright==1.62.0
 pluggy==1.6.0
 pycparser==3.0
-pyee==13.0.1
+pyee==14.0.0
 Pygments==2.20.0
 pytest==9.1.1
 python3-saml==1.16.0
