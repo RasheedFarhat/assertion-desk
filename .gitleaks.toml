@@ -19,6 +19,17 @@ the commit that carries it -- the three regexes below match the exact literal
 synthetic strings themselves, so the scheduled full-history scan stops
 flagging the older commits that introduced them too, without a second history
 rewrite of an already-published repo.
+
+gitleaks allowlist regexes are checked against each rule's captured *secret*, not the
+whole matched line -- and the generic-api-key rule's capture group starts right after the
+last internal `key`-adjacent colon it finds. For the compose.yaml line, "keycloak" contains
+the literal substring "key", so the rule anchors there and its captured secret is only
+`5432/keycloak`, not the full `jdbc:postgresql://keycloak-db:5432/keycloak` string a human
+would call the actual value. Confirmed by probing the rule in isolation (--no-git, a
+single-line scratch file, not the CPU-heavy full-history scan) before trusting it. The
+compose.yaml regex below matches that captured substring, not the full URL, for that reason
+-- the other two regexes' captured secrets aren't truncated this way (no internal
+`key`-shaped colon inside a base64 blob or a dot-delimited JWT), confirmed the same way.
 '''
 paths = [
   '''fixtures/[0-9a-f]{64}\.json$''',
@@ -32,5 +43,7 @@ regexes = [
   # synthetic JWT, not a real token.
   '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiJhbGljZSJ9\.abcdefghij1234567890signature''',
   # compose.yaml's keycloak service -- dev-only compose network alias, no credential.
-  '''jdbc:postgresql://keycloak-db:5432/keycloak''',
+  # This is the rule's truncated *captured secret* ("keycloak" contains "key", so the
+  # generic-api-key rule anchors there), not the full URL -- see description above.
+  '''5432/keycloak''',
 ]
