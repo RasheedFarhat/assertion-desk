@@ -29,7 +29,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// HMAC signature verification (plan section 20, T9: \"Unauthenticated n8n\nwebhook\" -> \"HMAC signature required; replay window; rejected calls\nlogged\"). This is deliberately in a Code node, not left unverified --\nsignature checking is trivial logic that belongs in the workflow, unlike\neverything desk/api.py itself does (parsing, crypto, custody, grounding),\nwhich must never move into n8n. See n8n/README.md.\n\nExpects header 'x-desk-signature' = hex HMAC-SHA256 of the raw JSON body\nusing a secret shared with this workflow's own configuration (set via an\nn8n environment variable, DESK_WEBHOOK_SECRET -- never hard-coded here).\n\nn8n's Code node has no built-in crypto module access by default in some\ndeployments; where it is unavailable, verification should be delegated to\na Function node backed by n8n's built-in 'crypto' helper or moved to an\nupstream reverse proxy. That deployment-specific choice is why this node\nis intentionally small and isolated -- swap it without touching anything\ndownstream.\nconst crypto = require('crypto');\n\nconst secret = $env.DESK_WEBHOOK_SECRET;\nif (!secret) {\n  throw new Error('DESK_WEBHOOK_SECRET is not set -- refusing to accept an unverifiable webhook');\n}\n\nconst signatureHeader = $input.item.json.headers['x-desk-signature'];\nif (!signatureHeader) {\n  throw new Error('missing x-desk-signature header');\n}\n\nconst rawBody = JSON.stringify($input.item.json.body);\nconst expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\n\n// Constant-time compare -- a naive === here would leak timing information\n// about how many leading bytes matched.\nconst a = Buffer.from(signatureHeader, 'utf8');\nconst b = Buffer.from(expected, 'utf8');\nif (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {\n  throw new Error('signature mismatch -- rejecting');\n}\n\nreturn [{ json: $input.item.json.body }];"
+        "jsCode": "/* HMAC signature verification (plan section 20, T9: \"Unauthenticated n8n\nwebhook\" -> \"HMAC signature required; replay window; rejected calls\nlogged\"). This is deliberately in a Code node, not left unverified --\nsignature checking is trivial logic that belongs in the workflow, unlike\neverything desk/api.py itself does (parsing, crypto, custody, grounding),\nwhich must never move into n8n. See n8n/README.md.\n\nExpects header 'x-desk-signature' = hex HMAC-SHA256 of the raw JSON body\nusing a secret shared with this workflow's own configuration (set via an\nn8n environment variable, DESK_WEBHOOK_SECRET -- never hard-coded here).\n\nn8n's Code node has no built-in crypto module access by default in some\ndeployments; where it is unavailable, verification should be delegated to\na Function node backed by n8n's built-in 'crypto' helper or moved to an\nupstream reverse proxy. That deployment-specific choice is why this node\nis intentionally small and isolated -- swap it without touching anything\ndownstream. Requires the n8n environment variable NODE_FUNCTION_ALLOW_BUILTIN\nto include 'crypto' -- n8n's Code node sandbox blocks all built-in modules\nby default. See n8n/README.md's environment variable table. */\nconst crypto = require('crypto');\n\nconst secret = $env.DESK_WEBHOOK_SECRET;\nif (!secret) {\n  throw new Error('DESK_WEBHOOK_SECRET is not set -- refusing to accept an unverifiable webhook');\n}\n\nconst signatureHeader = $input.item.json.headers['x-desk-signature'];\nif (!signatureHeader) {\n  throw new Error('missing x-desk-signature header');\n}\n\nconst rawBody = JSON.stringify($input.item.json.body);\nconst expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');\n\n// Constant-time compare -- a naive === here would leak timing information\n// about how many leading bytes matched.\nconst a = Buffer.from(signatureHeader, 'utf8');\nconst b = Buffer.from(expected, 'utf8');\nif (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {\n  throw new Error('signature mismatch -- rejecting');\n}\n\nreturn [{ json: $input.item.json.body }];"
       },
       "id": "code-verify-hmac",
       "name": "Verify HMAC Signature",
@@ -60,13 +60,14 @@
     },
     {
       "parameters": {
-        "mode": "expression",
-        "output": "input",
+        "mode": "rules",
         "rules": {
           "values": [
             {
               "outputKey": "review_required",
               "conditions": {
+                "combinator": "and",
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.disposition }}",
@@ -79,6 +80,8 @@
             {
               "outputKey": "awaiting_evidence",
               "conditions": {
+                "combinator": "and",
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.disposition }}",
@@ -91,6 +94,8 @@
             {
               "outputKey": "escalate",
               "conditions": {
+                "combinator": "and",
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
                 "conditions": [
                   {
                     "leftValue": "={{ $json.disposition }}",
@@ -114,7 +119,11 @@
     {
       "parameters": {
         "source": "database",
-        "workflowId": "={{ $env.DESK_WF2_WORKFLOW_ID }}",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $env.DESK_WF2_WORKFLOW_ID }}",
+          "mode": "id"
+        },
         "workflowInputs": {
           "value": {
             "case_id": "={{ $json.id }}"

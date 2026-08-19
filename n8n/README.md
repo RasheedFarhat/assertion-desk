@@ -102,6 +102,12 @@ does not invent a database write path nothing else in this repo has.
 | `DESK_CUSTOMER_CONTACT_DEMO` | WF3 | `demo-customer@example.com` -- see "What WF3 does not do" |
 | `DESK_REPO_PATH` | WF4 | `/repo` -- see the deployment-prerequisite note above |
 
+`NODE_FUNCTION_ALLOW_BUILTIN` is not a Desk-specific variable but is required regardless: n8n's
+Code node runs in a sandbox that blocks Node's built-in modules by default, and WF1's "Verify HMAC
+Signature" node needs `crypto`. Set it on the `n8n` service itself (not read by any Desk workflow
+logic) to `crypto` -- e.g. `NODE_FUNCTION_ALLOW_BUILTIN=crypto`. Without it, every webhook call
+fails at that node with `Cannot find module 'crypto'` before HMAC verification ever runs.
+
 ## Credentials
 
 Every Gmail node uses a placeholder credential ID (`PLACEHOLDER_CREDENTIAL_ID`). Importing these
