@@ -25,6 +25,18 @@ from datetime import datetime, timezone
 DECISIONS = frozenset({"approved", "escalated"})
 
 
+class DecisionValidationError(ValueError):
+    """Raised by record_decision() for a caller-supplied decision that fails the rules
+    below. A ValueError subclass, not a plain ValueError, so `.detail` (see
+    desk/case/state.py's IllegalTransition for the same pattern) gives desk/api.py's
+    handlers a value to return to the client that is guaranteed, by construction, to be
+    literal text authored in this module rather than another exception's message."""
+
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__(detail)
+
+
 @dataclass(frozen=True)
 class Approval:
     id: str
@@ -61,9 +73,9 @@ def record_decision(
     decisions may still carry one (an approver can approve with a caveat noted), so this
     is a one-way requirement, not a leave-it-blank-if-you-agree rule."""
     if decision not in DECISIONS:
-        raise ValueError(f"decision must be one of {sorted(DECISIONS)}, got {decision!r}")
+        raise DecisionValidationError(f"decision must be one of {sorted(DECISIONS)}, got {decision!r}")
     if decision == "escalated" and not override_reason:
-        raise ValueError("an escalated decision requires a non-empty override_reason")
+        raise DecisionValidationError("an escalated decision requires a non-empty override_reason")
 
     responded = responded_at or datetime.now(timezone.utc).isoformat()
     latency_seconds: float | None = None

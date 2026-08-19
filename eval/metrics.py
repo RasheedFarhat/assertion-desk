@@ -77,6 +77,7 @@ corpus-shape half of this story):
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from collections import Counter
@@ -446,7 +447,15 @@ _SECRET_PATTERNS = {
 def secret_leakage_scan(fixtures_dir: Path) -> dict:
     """Scans every recorded fixture's stored prompt text (the literal bytes actually
     sent to a model provider) for secret-shaped patterns, independent of
-    desk/custody's own detector by design."""
+    desk/custody's own detector by design.
+
+    A hit never carries the matched text itself. metrics.json and report.md are both
+    committed to the repo, so any raw characters recorded here would mean an actual
+    leaked secret gets permanently, publicly re-exposed by the very check meant to
+    catch it. Instead each hit records only match_length (how much text matched) and
+    fingerprint (a truncated sha256 of the matched text), which is enough to confirm
+    a hit is real, tell two hits apart, and spot a repeat of the same secret across
+    fixtures, without the fingerprint being reversible back to the secret."""
     fixture_files = sorted(fixtures_dir.glob("*.json")) if fixtures_dir.exists() else []
     hits = []
     for fp in fixture_files:
@@ -457,7 +466,16 @@ def secret_leakage_scan(fixtures_dir: Path) -> dict:
         prompt = rec.get("prompt", "") or ""
         for name, pattern in _SECRET_PATTERNS.items():
             for m in pattern.finditer(prompt):
-                hits.append({"fixture_file": fp.name, "pattern": name, "span_preview": m.group(0)[:24] + "..."})
+                matched = m.group(0)
+                fingerprint = hashlib.sha256(matched.encode()).hexdigest()[:12]
+                hits.append(
+                    {
+                        "fixture_file": fp.name,
+                        "pattern": name,
+                        "match_length": len(matched),
+                        "fingerprint": fingerprint,
+                    }
+                )
     return {"fixtures_scanned": len(fixture_files), "leak_count": len(hits), "hits": hits}
 
 

@@ -166,7 +166,11 @@ def setup() -> None:
     print(f"  realm:        {REALM}")
     print(f"  SP entity id: {SP_ENTITY_ID}")
     print(f"  SP ACS url:   {SP_ACS_URL}")
-    print(f"  test user:    {TEST_USER} / {TEST_PASSWORD}")
+    # Credential value intentionally not echoed here, even though TEST_PASSWORD is a
+    # fixed, disposable, non-secret literal for a local-only Keycloak realm (see the
+    # module constants above): printing a credential to stdout is a bad pattern to
+    # have in this codebase regardless of whether this particular value matters.
+    print(f"  test user:    {TEST_USER} (password: see TEST_PASSWORD in this file)")
     print(f"  SSO URL:      {KC_BASE}/realms/{REALM}/protocol/saml")
 
 

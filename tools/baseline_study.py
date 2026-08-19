@@ -42,6 +42,7 @@ from __future__ import annotations
 import html
 import json
 import random
+import re
 import statistics
 import time
 from pathlib import Path
@@ -54,6 +55,23 @@ CORPUS_DIR = ROOT / "corpus" / "cases"
 MANIFEST_PATH = ROOT / "corpus" / "MANIFEST.json"
 STATE_PATH = ROOT / "docs" / "baseline_timings.json"
 RESULTS_MD_PATH = ROOT / "docs" / "HUMAN_BASELINE_RESULTS.md"
+
+# Every corpus/cases/<id> directory name matches this (checked against the live
+# manifest, not asserted). Every Flask route below already rejects a case_id that
+# isn't a key of state["cases"] (the fixed 17-case sample) before it ever reaches
+# load_case_bundle. This regex is a second, independent gate directly at the one
+# place a case_id turns into a filesystem path, so that guarantee holds even if a
+# future call site forgets the state-membership check.
+_CASE_ID_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def _safe_case_dir(case_id: str) -> Path:
+    if not _CASE_ID_RE.match(case_id):
+        raise ValueError(f"invalid case_id: {case_id!r}")
+    case_dir = (CORPUS_DIR / case_id).resolve()
+    if case_dir.parent != CORPUS_DIR.resolve():
+        raise ValueError(f"invalid case_id: {case_id!r}")
+    return case_dir
 
 # Fixed on purpose: if docs/baseline_timings.json is ever deleted, re-running this
 # module reproduces the identical 17-case sample rather than a new random one.
@@ -145,7 +163,7 @@ def save_state(state: dict[str, Any]) -> None:
 
 
 def load_case_bundle(case_id: str) -> dict[str, Any]:
-    case_dir = CORPUS_DIR / case_id
+    case_dir = _safe_case_dir(case_id)
     narrative = json.loads((case_dir / "narrative.json").read_text())
     context = json.loads((case_dir / "context.json").read_text())
     label = json.loads((case_dir / "label.json").read_text())

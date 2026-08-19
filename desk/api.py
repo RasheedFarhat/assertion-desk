@@ -48,7 +48,7 @@ from typing import Any
 
 from flask import Flask, Response, jsonify, request
 
-from desk.case.approval import Approval, record_decision
+from desk.case.approval import Approval, DecisionValidationError, record_decision
 from desk.case.orchestrate import advance_verifying_case
 from desk.case.state import Case, CaseState, IllegalTransition, new_case, transition
 from desk.case.store import CaseStore, connect
@@ -595,7 +595,7 @@ def create_app(store: CaseStore | None = None) -> Flask:
         try:
             advanced = transition(case, CaseState.HUMAN_REVIEW)
         except IllegalTransition as exc:
-            return jsonify({"error": str(exc)}), 409
+            return jsonify({"error": exc.detail}), 409
         app.store.update_case(advanced)  # type: ignore[attr-defined]
         last = app.store.last_trace_event(case_id)  # type: ignore[attr-defined]
         ev = append_event(case_id, "review", _hash_json({"posted_for_review": True}), prior=last)
@@ -629,14 +629,14 @@ def create_app(store: CaseStore | None = None) -> Flask:
                 override_reason=override_reason,
                 requested_at=requested_at,
             )
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
+        except DecisionValidationError as exc:
+            return jsonify({"error": exc.detail}), 400
 
         target_state = CaseState.APPROVED if decision_str == "approved" else CaseState.ESCALATED
         try:
             advanced = transition(case, target_state)
         except IllegalTransition as exc:
-            return jsonify({"error": str(exc)}), 409
+            return jsonify({"error": exc.detail}), 409
 
         app.store.insert_approval(approval)  # type: ignore[attr-defined]
         app.store.update_case(advanced)  # type: ignore[attr-defined]
@@ -659,7 +659,7 @@ def create_app(store: CaseStore | None = None) -> Flask:
         try:
             advanced = transition(case, CaseState.PUBLISHED)
         except IllegalTransition as exc:
-            return jsonify({"error": str(exc)}), 409
+            return jsonify({"error": exc.detail}), 409
         app.store.update_case(advanced)  # type: ignore[attr-defined]
         last = app.store.last_trace_event(case_id)  # type: ignore[attr-defined]
         ev = append_event(case_id, "publish", _hash_json({"published": True}), prior=last)

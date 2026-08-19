@@ -254,10 +254,19 @@ def render_report(metrics: dict) -> str:
     )
     if sl["hits"]:
         w("")
-        w("| Fixture | Pattern | Preview |")
-        w("|---|---|---|")
+        w(
+            "No raw matched text is ever printed here or in `metrics.json`: this report "
+            "and that file are both committed to the repo, and a real hit is by "
+            "definition a leaked secret, so reproducing its characters here would just "
+            "be a second leak. `Fingerprint` is a truncated sha256 of the matched text, "
+            "not reversible back to it, kept only to tell repeats of the same secret "
+            "apart from distinct ones."
+        )
+        w("")
+        w("| Fixture | Pattern | Match length | Fingerprint |")
+        w("|---|---|---|---|")
         for h in sl["hits"]:
-            w(f"| `{h['fixture_file']}` | `{h['pattern']}` | `{h['span_preview']}` |")
+            w(f"| `{h['fixture_file']}` | `{h['pattern']}` | {h['match_length']} | `{h['fingerprint']}` |")
     w("")
 
     # ---------------------------------------------------------------- #

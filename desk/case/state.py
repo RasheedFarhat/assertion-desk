@@ -126,7 +126,18 @@ class IllegalTransition(Exception):
     always a caller bug (a missing branch in the orchestrator, a stale state read before
     the transition), never a legitimate outcome to route around -- see this module's
     docstring for why that is a deliberate difference from desk/ground's
-    rejection-as-data pattern."""
+    rejection-as-data pattern.
+
+    `.detail` is always set from a literal f-string built here, in this module, from
+    known-safe data (a CaseState value, a case id the caller already supplied) -- never
+    from wrapping another exception. desk/api.py's HTTP handlers return `.detail` to the
+    client rather than `str(exc)` so that guarantee holds by construction: nothing this
+    class's constructor is ever called with can carry a stack trace, a file path, or
+    another exception's message through to an API response."""
+
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__(detail)
 
 
 @dataclass(frozen=True)
