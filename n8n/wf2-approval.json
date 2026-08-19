@@ -110,7 +110,7 @@
         "resource": "message",
         "operation": "sendAndWait",
         "sendTo": "={{ $env.DESK_ANALYST_ALIAS || 'analyst@example.com' }}",
-        "subject": "=Assertion Desk: case {{ $('GET /cases/{id}/card').item.json.id }} needs review",
+        "subject": "=Assertion Desk: case {{ $('When called by WF1').item.json.case_id }} needs review",
         "message": "={{ $json.data }}",
         "responseType": "approval",
         "approvalOptions": {
@@ -157,7 +157,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $('GET /cases/{id}/card').item.json.id + '/decision' }}",
+        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $('When called by WF1').item.json.case_id + '/decision' }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { \"approver\": $json.data.approvedBy || $env.DESK_ANALYST_ALIAS, \"decision\": $json.data.approved ? \"approved\" : \"escalated\", \"channel\": \"gmail\", \"override_reason\": $json.data.approved ? undefined : ($json.data.comment || \"rejected via Gmail send-and-wait, no comment supplied\") } }}",
@@ -186,8 +186,8 @@
         "resource": "message",
         "operation": "send",
         "sendTo": "={{ $env.DESK_SECURITY_ALIAS || 'security@example.com' }}",
-        "subject": "=Assertion Desk: case {{ $('GET /cases/{id}/card').item.json.id }} approval timed out (24h)",
-        "message": "=No response within 24 hours to the review request for case {{ $('GET /cases/{id}/card').item.json.id }}. desk/api.py never auto-approves on timeout (plan section 21) -- this case is being escalated and re-notified rather than silently published.\n\nCase detail: {{ $env.DESK_API_BASE_URL || 'http://app:5050' }}/cases/{{ $('GET /cases/{id}/card').item.json.id }}",
+        "subject": "=Assertion Desk: case {{ $('When called by WF1').item.json.case_id }} approval timed out (24h)",
+        "message": "=No response within 24 hours to the review request for case {{ $('When called by WF1').item.json.case_id }}. desk/api.py never auto-approves on timeout (plan section 21) -- this case is being escalated and re-notified rather than silently published.\n\nCase detail: {{ $env.DESK_API_BASE_URL || 'http://app:5050' }}/cases/{{ $('When called by WF1').item.json.case_id }}",
         "options": {}
       },
       "id": "gmail-timeout-escalate",
@@ -202,7 +202,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $('GET /cases/{id}/card').item.json.id + '/decision' }}",
+        "url": "={{ ($env.DESK_API_BASE_URL || 'http://app:5050') + '/cases/' + $('When called by WF1').item.json.case_id + '/decision' }}",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { \"approver\": \"system:timeout\", \"decision\": \"escalated\", \"channel\": \"gmail\", \"override_reason\": \"no analyst response within 24h -- auto-escalated, not auto-approved\" } }}",
