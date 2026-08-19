@@ -10,6 +10,10 @@
 
 <p><code>make eval-replay</code> · 50-case offline proof · demo-scoped, not production-ready</p>
 
+<video src="https://raw.githubusercontent.com/RasheedFarhat/assertion-desk/main/docs/media/demo.mp4" controls muted loop playsinline poster="https://raw.githubusercontent.com/RasheedFarhat/assertion-desk/main/docs/media/demo-poster.png" width="100%"></video>
+
+<p>A single case, verified, explained, and decided. <a href="https://claude.ai/code/artifact/79a8fd66-6c3f-4346-97d7-e24394482dd3">Watch it walked through</a>.</p>
+
 </div>
 
 ## Why it exists
