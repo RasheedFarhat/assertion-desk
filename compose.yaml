@@ -52,7 +52,7 @@ services:
     command: ["start-dev"]
     environment:
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak  # gitleaks:allow -- dev-only compose network alias, no credential
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak_dev_only
       KC_BOOTSTRAP_ADMIN_USERNAME: admin

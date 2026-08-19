@@ -1,0 +1,36 @@
+title = "assertion-desk gitleaks config"
+
+# Extends gitleaks' built-in default ruleset rather than replacing it -- see
+# docs/THREAT_MODEL.md's T10 for why this CI gate exists in the first place.
+[extend]
+useDefault = true
+
+[allowlist]
+description = '''
+fixtures/ holds harness/generate.py's frozen model-response cache: each file
+is named and keyed by the SHA-256 hash of its own JSON content (a cache key,
+not a credential), which is exactly the field-name + high-entropy-string shape
+the generic-api-key rule looks for. There is no live secret in this directory
+-- it is replayed, never called out to, by eval --replay-only and desk's
+fixture-cache-first path. This is also suppressed inline with `gitleaks:allow`
+at the flagged line in tests/custody/test_custody.py (synthetic PEM key + JWT)
+and compose.yaml (dev-only DB URL), but an inline comment only takes effect in
+the commit that carries it -- the three regexes below match the exact literal
+synthetic strings themselves, so the scheduled full-history scan stops
+flagging the older commits that introduced them too, without a second history
+rewrite of an already-published repo.
+'''
+paths = [
+  '''fixtures/[0-9a-f]{64}\.json$''',
+  '''fixtures/_deterministic/[0-9a-f]{64}\.json$''',
+]
+regexes = [
+  # tests/custody/test_custody.py::test_xml_embedded_private_key_is_redacted --
+  # synthetic RSA key body, not a real key.
+  '''MIIBOgIBAAJBAK5x5f8u4h2z9k3s8j2f7d9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c''',
+  # tests/custody/test_custody.py::test_narrative_jwt_and_email_are_caught --
+  # synthetic JWT, not a real token.
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiJhbGljZSJ9\.abcdefghij1234567890signature''',
+  # compose.yaml's keycloak service -- dev-only compose network alias, no credential.
+  '''jdbc:postgresql://keycloak-db:5432/keycloak''',
+]

@@ -3,7 +3,7 @@
   "shared_artifacts": {
     "shared_baseline_har": {
       "path": "harness/capture/captured/login.har",
-      "sha256": "a3eb7956f4466c38c4f95dd343b39df9d56210532eb7882960b38de57ba210df",
+      "sha256": "34fec9204d1877988e58a538c3c46086d0da7a02ad0a547e59aaec3e8760b933",
       "note": "Most cases reuse this file byte-for-byte and are NOT duplicated into their own case directory -- see label.json's har_ref for each case. Only cases whose fault mechanism produced different HAR bytes (a har_transform, or a LIVE_CAPTURE fault with its own real capture) carry a case-local login.har."
     }
   },
@@ -360,7 +360,7 @@
       "case_id": "stripped_relaystate",
       "artifacts": {
         "saml_response.xml": "89ff279017b738a03d1dda7bb90d505c766a2988fd3af03f4ab5cf8a4b8d213a",
-        "login.har": "f809991222bda2626721bfdd5320020fab23562dc5e7482f7b773b019421b802",
+        "login.har": "2cd254b2227df18f4ffc76e6f545f6bf76fb28c22348d11321284db213a7435d",
         "label.json": "ed0e5d0936845df43376a3655226b796513b831acb1ffe39d3f95428b1107f9f"
       },
       "fault_id": "stripped_relaystate",
@@ -380,7 +380,7 @@
       "case_id": "wrong_binding",
       "artifacts": {
         "saml_response.xml": "89ff279017b738a03d1dda7bb90d505c766a2988fd3af03f4ab5cf8a4b8d213a",
-        "login.har": "b17d431376b33dd12877105cb2227ab9f62eaef9aad907991c9cc53af3fa6c49",
+        "login.har": "d6c70bf74b1a4ad95cd1020c66643b20b4d24cb077ebcbf1c95b8bb7e8480311",
         "label.json": "6b2cc050d72f95f043f652745a1fafc8cdf590ab3a6161d189bccca921d399b3"
       },
       "fault_id": "wrong_binding",
@@ -399,7 +399,7 @@
     "negative_control": {
       "case_id": "negative_control",
       "artifacts": {
-        "login.har": "93fea86b2ad61de57d57a8ae287d8cdb28c13600085a0b54273cbad46b56d335",
+        "login.har": "04fe148586d339534e8d149ac28dced9c89e011f5895313ba03b91786f3f9905",
         "label.json": "821964ab709b9a72ebcb63f52705604211b899f988408db314f51e23d09d33b0"
       },
       "fault_id": "negative_control",
@@ -1046,7 +1046,7 @@
       "case_id": "wrong_issuer__adv_s2_persona_hijack",
       "artifacts": {
         "saml_response.xml": "89ff279017b738a03d1dda7bb90d505c766a2988fd3af03f4ab5cf8a4b8d213a",
-        "login.har": "6ade3f74aa1af8b4b8128a1b57e082a3b2065948fdbd99e4cb1e9958384e1a40",
+        "login.har": "f23aa626f475fa47ec33bf4e89a128cb00fe50f92cc1041763ee69a00f1f713f",
         "label.json": "54f296685aa6bbb092e7229fcadf404930d2847d606fb5f8fed4279d5e905eab"
       },
       "fault_id": "wrong_issuer",

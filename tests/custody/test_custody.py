@@ -138,7 +138,7 @@ def test_xml_embedded_private_key_is_redacted():
     """Synthetic case (no real fixture contains a PEM key): unlike NameID/group, a
     private key embedded in XML has no verifier dependency and must be stripped."""
     pem = (
-        b"-----BEGIN RSA PRIVATE KEY-----\n"
+        b"-----BEGIN RSA PRIVATE KEY-----\n"  # gitleaks:allow -- synthetic, not a real key
         b"MIIBOgIBAAJBAK5x5f8u4h2z9k3s8j2f7d9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c\n"
         b"-----END RSA PRIVATE KEY-----\n"
     )
@@ -165,7 +165,7 @@ def test_narrative_bare_password_mention_is_a_known_gap():
 
 
 def test_narrative_jwt_and_email_are_caught():
-    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.abcdefghij1234567890signature"
+    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.abcdefghij1234567890signature"  # gitleaks:allow -- synthetic, not a real token
     narrative = f"Here is the token: {jwt} and contact me at alice@example.test if needed."
     result = run_custody("narrative", narrative.encode("utf-8"))
     defanged = result.defanged_bytes.decode("utf-8")
