@@ -10,7 +10,7 @@
 # packages and the shared libraries those extensions dlopen at import time --
 # not the -dev headers or the compiler toolchain used to build them.
 
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 # libxmlsec1-openssl is xmlsec1's OpenSSL crypto backend. python3-saml needs
 # it present at build time (not just libxmlsec1 itself), or assertion
@@ -30,7 +30,7 @@ COPY requirements.txt .
 # Skips reinstalling every package's build step in the final image layer.
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-FROM python:3.13-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # Runtime-only system dependencies: the shared libraries the compiled
 # extensions above dlopen, without -dev headers or build-essential.
