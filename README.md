@@ -214,7 +214,11 @@ docker compose --profile local-model up -d
 docker compose --profile core --profile orchestration up -d
 ```
 
-Use `make serve` for the tested local HTTP demo. The n8n profile is orchestration scaffolding: its four workflows must be imported and configured manually, and its evidence-reply loop is incomplete. See [n8n/README.md](n8n/README.md).
+Use `make serve` for the tested local HTTP demo. The n8n profile is orchestration scaffolding: its four workflows must be imported and configured manually. WF1 (intake) and WF2 (approval gate) have been run end to end against a live local instance -- a signed webhook, a real Gmail send-and-wait pause, and a real human approval click all resolving the same case; WF3's evidence-reply loop remains incomplete. See [n8n/README.md](n8n/README.md).
+
+<p align="center"><img src="https://raw.githubusercontent.com/RasheedFarhat/assertion-desk/main/docs/media/n8n-demo.gif" alt="n8n running WF1 intake and WF2's approval gate against a live local instance: a signed webhook lands, the run pauses on a real Gmail send-and-wait, and it resumes and resolves after a real human approval" width="100%"></p>
+
+<p align="center">Shortened from a full recorded run: a signed webhook fires live, WF2 pauses for a real Gmail approval, and the same execution resumes and resolves once it's clicked.</p>
 
 </details>
 
