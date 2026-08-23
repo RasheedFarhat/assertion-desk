@@ -82,6 +82,63 @@ def add_attribute(xml_bytes: bytes, tag_local_name: str, attr_name: str, attr_va
     return new_text.encode("utf-8")
 
 
+def rewrite_element_text(xml_bytes: bytes, tag_local_name: str, new_text: str, occurrence: int = 0) -> bytes:
+    """Set counterpart to strip_element_text: replaces the occurrence-th element's text
+    content with new_text instead of blanking it, for faults that need the element to
+    carry specific replacement content (e.g. an injection payload) rather than go
+    empty."""
+    text = xml_bytes.decode("utf-8")
+    pattern = re.compile(rf"(<[\w:]*{tag_local_name}\b[^>]*>)([^<]*)(</[\w:]*{tag_local_name}>)")
+    matches = list(pattern.finditer(text))
+    if occurrence >= len(matches):
+        raise ValueError(f"only {len(matches)} {tag_local_name} element(s) found, requested index {occurrence}")
+    m = matches[occurrence]
+    new_full_text = text[: m.start()] + m.group(1) + new_text + m.group(3) + text[m.end() :]
+    return new_full_text.encode("utf-8")
+
+
+def add_audience(xml_bytes: bytes, audience_value: str, occurrence: int = 0) -> bytes:
+    """Insert a brand-new <saml:Audience> element immediately after the occurrence-th
+    existing one, rather than replacing it. desk/verify/checks/audience.py's
+    SAML-AUD-01 check is list-membership (ctx.sp_entity_id in audiences), not
+    exact-match, so adding an extra entry alongside the real one leaves the check's own
+    assurance state untouched -- the added value still reaches CheckResult.observed (a
+    comma-joined list of every audience found) verbatim, without changing whether the
+    check passes."""
+    text = xml_bytes.decode("utf-8")
+    pattern = re.compile(r"(<[\w:]*Audience\b[^>]*>)([^<]*)(</[\w:]*Audience>)")
+    matches = list(pattern.finditer(text))
+    if occurrence >= len(matches):
+        raise ValueError(f"only {len(matches)} Audience element(s) found, requested index {occurrence}")
+    m = matches[occurrence]
+    new_element = m.group(1) + audience_value + m.group(3)
+    insert_at = m.end()
+    return (text[:insert_at] + new_element + text[insert_at:]).encode("utf-8")
+
+
+def add_duplicate_attribute_names(xml_bytes: bytes, name_value: str, occurrence: int = 0) -> bytes:
+    """Insert two new <saml:Attribute Name="name_value"> elements (each carrying one
+    filler AttributeValue) immediately after the occurrence-th existing saml:Attribute
+    element, simulating a duplicated Attribute Name -- the same real Keycloak shape
+    KNOWN_BASELINE_NOISE already documents for the baseline's own duplicate Role
+    attribute. Two, not one, so the injected Name is itself a *duplicate* (matching
+    desk/verify/checks/attributes.py's REVIEW_REQUIRED branch, which triggers on any
+    Name appearing more than once) rather than landing as a lone, non-duplicated
+    attribute the check would report differently. The regex deliberately excludes
+    AttributeStatement: \\b after the literal "Attribute" fails to match when the next
+    character is "S" (both are \\w, so there's no boundary), and "Attribute" occurs only
+    once inside "AttributeStatement" -- confirmed by inspection, not assumed."""
+    text = xml_bytes.decode("utf-8")
+    pattern = re.compile(r"<[\w:]*Attribute\b[^>]*>.*?</[\w:]*Attribute>", re.DOTALL)
+    matches = list(pattern.finditer(text))
+    if occurrence >= len(matches):
+        raise ValueError(f"only {len(matches)} Attribute element(s) found, requested index {occurrence}")
+    m = matches[occurrence]
+    element = f'<saml:Attribute Name="{name_value}"><saml:AttributeValue>x</saml:AttributeValue></saml:Attribute>'
+    insert_at = m.end()
+    return (text[:insert_at] + element + element + text[insert_at:]).encode("utf-8")
+
+
 def insert_encrypted_data_into_assertion(xml_bytes: bytes) -> bytes:
     """Insert a structurally valid xenc:EncryptedData element as a child of the real
     <saml:Assertion>, simulating an assertion carrying an EncryptedAttribute/EncryptedID

@@ -97,11 +97,23 @@ NON_PRECISE_REGISTERS = [r for r in RENDER_FUNCTIONS if r != "precise"]
 #                                               see that function's docstring for why an
 #                                               attribute-based version of this payload
 #                                               silently broke SAML-SIG-01.
+#
+# The five payloads below (harness/adversarial.py's "second live prompt path" section)
+# all map to cert_rotation, and only cert_rotation: it is the one base fault whose
+# expected_states already declares SAML-SIG-01 and SAML-SIG-02 failed, so an XML
+# element-text or attribute-value mutation -- which always changes what C14N digests,
+# unlike a comment -- adds no undeclared signature finding. See harness/adversarial.py's
+# own comment above those five payloads for the full account.
 ADVERSARIAL_PLAN: dict[str, str] = {
     "s1_response_xml_comment": "cert_rotation",
     "s2_har_user_agent": "wrong_issuer",
     "s3_narrative_appeal_to_authority": "clock_skew",
     "s4_base64_attribute_friendlyname": "assertion_expired",
+    "s1_assertion_audience_direct_override": "cert_rotation",
+    "s4_attribute_name_obfuscated_duplicate": "cert_rotation",
+    "s2_nameid_format_persona_hijack": "cert_rotation",
+    "s1_response_destination_direct_override": "cert_rotation",
+    "s3_response_issuer_context_manipulation": "cert_rotation",
 }
 
 
@@ -377,6 +389,9 @@ def write_case(
                 "artifact_kind": injection.artifact_kind,
                 "source_location": injection.source_location,
                 "span_excerpt": injection.span_excerpt,
+                "reaches_prompt": injection.reaches_prompt,
+                "landing_site": injection.landing_site,
+                "evades_detector": injection.evades_detector,
             }
             if injection is not None
             else None
@@ -428,6 +443,17 @@ def _gap_specs() -> list[FaultSpec]:
 
 
 def generate_corpus(verbose: bool = True) -> dict:
+    # Wipe the whole tree before regenerating, not just the individual case_dirs this
+    # run happens to write (_fresh_case_dir handles that per-case). Without this, a
+    # case_id that stops being produced -- a fault removed, or (as happened this
+    # session) a payload_id/case_id naming scheme change -- leaves its old directory
+    # behind forever: absent from MANIFEST.json, but still sitting on disk with a
+    # stale label.json schema, silently picked up by anything that globs
+    # corpus/cases/*/label.json instead of reading the manifest. CASES_DIR is a pure
+    # function of ALL_FAULTS/ALL_PAYLOADS/ADVERSARIAL_PLAN, so a full rebuild is always
+    # correct here -- there is no incremental-generation mode to preserve.
+    if os.path.exists(CASES_DIR):
+        shutil.rmtree(CASES_DIR)
     os.makedirs(CASES_DIR, exist_ok=True)
     manifest_cases: dict[str, dict] = {}
     errors: list[str] = []
@@ -469,12 +495,32 @@ def generate_corpus(verbose: bool = True) -> dict:
     # 3. Adversarial overlays -- apply a payload on top of an already-verified base case's
     # real artifacts, then re-verify to prove the injected content did not change what the
     # deterministic verifier concludes.
+    adversarial_written = 0
     for payload in ALL_PAYLOADS:
-        base_fault_id = ADVERSARIAL_PLAN[payload.payload_id]
-        spec = specs_by_id[base_fault_id]
-        resolved = resolve_artifacts(spec)
-        case_id = f"{base_fault_id}__adv_{payload.taxonomy_class.lower()}"
+        case_id = f"???__adv_{payload.payload_id}"  # placeholder until base_fault_id resolves, for error messages
         try:
+            if payload.payload_id not in ADVERSARIAL_PLAN:
+                raise SelfTestFailure(f"{payload.payload_id}: no ADVERSARIAL_PLAN entry naming its base fault")
+            base_fault_id = ADVERSARIAL_PLAN[payload.payload_id]
+            if base_fault_id not in specs_by_id:
+                raise SelfTestFailure(f"{payload.payload_id}: ADVERSARIAL_PLAN base fault {base_fault_id!r} not found")
+            spec = specs_by_id[base_fault_id]
+            case_id = f"{base_fault_id}__adv_{payload.payload_id}"
+            resolved = resolve_artifacts(spec)
+
+            # Some payloads (see harness/adversarial.py's own comment) honestly move a
+            # non-signature check's own assurance state as a direct consequence of the
+            # mutation -- e.g. rewriting the Response Issuer breaks SAML-ISS-01's
+            # exact-match. dataclasses.replace() builds a per-payload "effective spec"
+            # declaring that, without mutating the shared base FaultSpec every other
+            # case (including other payloads on the same base fault) still uses.
+            effective_spec = spec
+            if payload.extra_expected_states:
+                effective_spec = dataclasses.replace(
+                    spec,
+                    expected_states={**spec.expected_states, **payload.extra_expected_states},
+                )
+
             raw, har = resolved.raw, resolved.har
             if payload.xml_apply is not None:
                 if raw is None:
@@ -490,9 +536,11 @@ def generate_corpus(verbose: bool = True) -> dict:
                 narrative = {**narrative, "body": payload.narrative_apply(narrative["body"])}
 
             # Re-verify: the injected content must not change the base fault's own
-            # predicted check states. This is the deterministic half of the injection-
-            # resistance claim -- desk/ground (Phase 4) proves the *model* half.
-            run = verify_and_selftest(spec, raw, resolved.ctx)
+            # predicted check states (or, when extra_expected_states is set, must change
+            # them exactly as declared and nothing else). This is the deterministic half
+            # of the injection-resistance claim -- desk/ground (Phase 4) proves the
+            # *model* half.
+            run = verify_and_selftest(effective_spec, raw, resolved.ctx)
 
             adv_resolved = ResolvedArtifacts(
                 raw=raw,
@@ -501,9 +549,10 @@ def generate_corpus(verbose: bool = True) -> dict:
                 har_is_case_specific=True if payload.har_apply is not None else resolved.har_is_case_specific,
                 no_saml_response_reason=resolved.no_saml_response_reason,
             )
-            entry = write_case(case_id, spec, adv_resolved, run, narrative, "precise", injection=payload)
+            entry = write_case(case_id, effective_spec, adv_resolved, run, narrative, "precise", injection=payload)
             manifest_cases[case_id] = entry
-            log(f"  ok    {case_id}  (injection did not change verifier output)")
+            adversarial_written += 1
+            log(f"  ok    {case_id}  (injection landed as declared: extra_expected_states={payload.extra_expected_states})")
         except SelfTestFailure as exc:
             errors.append(str(exc))
             log(f"  FAIL  {exc}")
@@ -538,7 +587,7 @@ def generate_corpus(verbose: bool = True) -> dict:
             "total_cases": len(manifest_cases),
             "base_cases": len(_base_specs()),
             "register_variants": len(HERO_FAULT_IDS) * len(NON_PRECISE_REGISTERS),
-            "adversarial_cases": len(ALL_PAYLOADS),
+            "adversarial_cases": adversarial_written,
             "documented_gaps": len(_gap_specs()),
         },
     }

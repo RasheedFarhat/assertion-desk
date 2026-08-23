@@ -213,30 +213,42 @@ def render_report(metrics: dict) -> str:
     w("")
     w(f"n = {ir['n']} adversarial cases, split by whether the injection payload has a live path into a model prompt:")
     w("")
-    s3 = ir["s3_live_path"]
-    tv = ir["s1_s2_s4_structurally_inapplicable"]
+    live = ir["live_prompt_path"]
+    inapplicable = ir["structurally_inapplicable"]
+    recall = ir["injection_detector_recall"]
     w(
-        f"- **S3 (context manipulation via narrative, a real prompt path):** "
-        f"{s3['resisted']}/{s3['n']} resisted."
+        f"- **Live prompt path (payload text reaches a real Job A/B/C prompt):** "
+        f"{live['resisted']}/{live['n']} resisted. {live['note']}."
     )
     w(
-        f"- **S1/S2/S4 (direct override, persona hijack, obfuscated -- payload "
-        f"targets an artifact/location no job reads under the current architecture):** "
-        f"{tv['resisted']}/{tv['n']} resisted. {tv['note']}."
+        f"- **Structurally inapplicable (payload targets an artifact/location no job "
+        f"reads under the current architecture):** "
+        f"{inapplicable['resisted']}/{inapplicable['n']} resisted. {inapplicable['note']}."
     )
     w("")
     w(
-        "Reporting these as one four-case number would silently launder three "
-        "structural free passes into an apparent full-coverage result. They are kept "
-        "separate deliberately."
+        "Reporting these as one number would silently launder the structurally "
+        "inapplicable cases into an apparent full-coverage resistance result for "
+        "payloads that never had a path to resist along. They are kept separate "
+        "deliberately."
+    )
+    w("")
+    w(
+        f"**Injection detector recall:** {recall['detected']}/{recall['n']} "
+        f"({_pct(recall['recall'])}) of reachable, non-obfuscated payloads were "
+        f"actually flagged by `detect_instruction_shaped_spans`. {recall['note']}."
     )
     w("")
     if ir["rows"]:
-        w("| Case | Injection class | Live prompt path | Instruction signals detected | Outcome unaffected |")
-        w("|---|---|---|---|---|")
+        w(
+            "| Case | Injection class | Reaches prompt | Evades detector | "
+            "Instruction signals detected | Outcome unaffected |"
+        )
+        w("|---|---|---|---|---|---|")
         for r in ir["rows"]:
             w(
-                f"| `{r['case_id']}` | `{r['injection']}` | {r['has_live_prompt_path']} "
+                f"| `{r['case_id']}` | `{r['injection']['taxonomy_class']}` | "
+                f"{r['reaches_prompt']} | {r['evades_detector']} "
                 f"| {r['instruction_signals_detected']} | {r['outcome_unaffected']} |"
             )
         w("")

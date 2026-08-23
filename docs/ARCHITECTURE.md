@@ -73,7 +73,7 @@ customer artifact bundle  (UNTRUSTED: prose, HAR, SAMLResponse, IdP metadata)
         ▼
   desk/policy      auto | review_required | escalate | awaiting_evidence      NO AI
         │          (desk/policy/rules.py). auto is defined in the vocabulary
-        │          but the current rule table never emits it -- 0 of 51
+        │          but the current rule table never emits it -- 0 of 56
         │          corpus cases have expected_disposition == "auto" -- a
         │          real, checked property of the rule table, not an
         │          oversight (see the module's own docstring).
@@ -129,8 +129,8 @@ model's own text; `desk/policy`'s ignorance of that text is the defense that doe
 20 checks, not the plan's originally-cited approximate figure, verified by direct count in
 `desk/verify/checks/*.py`. 9 custody finding classes (`desk/custody/findings.py`), one more than
 the plan's original eight (`plaintext_credential` was added after reading a real captured HAR).
-51 corpus
-cases, 50 executable (`corpus/MANIFEST.json`), not the plan's aspirational ~250. Case
+56 corpus
+cases, 55 executable (`corpus/MANIFEST.json`), not the plan's aspirational ~250. Case
 persistence covers 3 of the 10 entities in the plan's original data model (`Case`,
 `TraceEvent`, `Approval`); the other 7 live only in an in-process cache. Full detail on what
 that gap means in practice is in `docs/LIMITATIONS.md`.

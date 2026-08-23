@@ -40,7 +40,13 @@ from eval.run import build_clients, run_corpus
 
 FULLY_FIXTURE_COVERED_CASE_IDS = [
     "assertion_expired",
-    "assertion_expired__adv_s4_obfuscated",
+    # Renamed from assertion_expired__adv_s4_obfuscated (harness/generate.py's
+    # case_id now keys on payload_id, not taxonomy_class, to fix a real collision
+    # bug -- see docs/PHASE4_NOTES.md). Same base fault, same payload content, same
+    # fixture cache entries (fixtures are keyed by prompt hash, not case_id) --
+    # confirmed by directly probing the fixture cache under the new case_id after
+    # the rename, so this is a like-for-like substitution, not a re-derivation.
+    "assertion_expired__adv_s4_base64_attribute_friendlyname",
     "broken_signature__non_native",
 ]
 

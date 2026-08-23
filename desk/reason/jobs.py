@@ -252,6 +252,44 @@ def _finalize(
     )
 
 
+def _scan_check_rows(check_rows: list[dict[str, Any]]) -> list[dict]:
+    """Scans only each row's observed field for instruction-shaped text. expected and
+    reason are system-authored constants (literal strings owned by desk/verify/checks/
+    *.py), never attacker-controlled, so scanning them would manufacture false
+    positives. observed, by contrast, is extracted verbatim from the parsed
+    SAMLResponse by several checks (desk/verify/checks/audience.py, attributes.py,
+    subject.py, destination.py, issuer.py) -- a real, live path an attacker-controlled
+    XML element's text or attribute value reaches a model prompt through. See
+    harness/adversarial.py's second batch of payloads (the ones layered onto
+    cert_rotation), which exist specifically to prove this path and exercise this scan."""
+    signals: list[dict] = []
+    for row in check_rows:
+        observed = row.get("observed")
+        if isinstance(observed, str):
+            signals.extend(detect_instruction_shaped_spans(observed))
+    return signals
+
+
+def _scan_job_a_facts(job_a_facts: dict[str, Any] | None) -> list[dict]:
+    """Job A's schema leaves onset/recent_change/reporter_role/wrong_belief and each
+    already_tried entry unconstrained (unlike scope, a closed enum) -- so an injection
+    that survives Job A's extraction can be re-injected into Job B's or Job C's prompt
+    through job_a_facts (build_job_b_prompt and build_job_c_prompt both interpolate
+    these fields; desk/reason/prompts.py). This is a third live path, independent of
+    _scan_check_rows, closed in the same pass."""
+    if not job_a_facts:
+        return []
+    signals: list[dict] = []
+    for field_name in ("onset", "recent_change", "reporter_role", "wrong_belief"):
+        value = job_a_facts.get(field_name)
+        if isinstance(value, str):
+            signals.extend(detect_instruction_shaped_spans(value))
+    for item in job_a_facts.get("already_tried") or []:
+        if isinstance(item, str):
+            signals.extend(detect_instruction_shaped_spans(item))
+    return signals
+
+
 # --------------------------------------------------------------------------------- #
 # The three jobs.
 # --------------------------------------------------------------------------------- #
@@ -300,8 +338,10 @@ def run_job_b(
         tiered,
         JOB_B_SCHEMA,
         lambda: render_deterministic_job_b(gaps),
-        instruction_signals=[],  # Job B reads deterministic gap data + already-extracted
-        # facts, not raw customer prose -- nothing new to scan here
+        # gaps themselves are deterministic (desk/verify/gaps.py), never attacker text --
+        # only job_a_facts' free-text fields can carry a re-injected payload. See
+        # _scan_job_a_facts's docstring.
+        instruction_signals=_scan_job_a_facts(job_a_facts),
     )
 
 
@@ -333,5 +373,14 @@ def run_job_c(
     prompt_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
     tiered = run_with_fallback(prompt, JOB_C_SCHEMA, clients=clients, fixtures=fixtures, replay_only=replay_only)
     return _finalize(
-        "C", prompt_sha256, tiered, JOB_C_SCHEMA, lambda: render_deterministic_job_c(run), instruction_signals=[]
+        "C",
+        prompt_sha256,
+        tiered,
+        JOB_C_SCHEMA,
+        lambda: render_deterministic_job_c(run),
+        # check_rows' observed fields are extracted verbatim from the parsed SAMLResponse
+        # and can carry attacker-controlled text (see _scan_check_rows's docstring);
+        # job_a_facts' free-text fields are a second, independent source of re-injected
+        # text (see _scan_job_a_facts's docstring).
+        instruction_signals=_scan_check_rows(check_rows) + _scan_job_a_facts(job_a_facts),
     )

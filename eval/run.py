@@ -44,10 +44,15 @@ and harness/generate.py by direct inspection, not assumed):
   always refuse" is not a rule this file encodes anywhere. That grading logic belongs in
   eval/metrics.py, keyed off each label's own expected_root_cause/expected_disposition.
 
-  adversarial (4 cases, identified by label["injection"] being non-null). Run through the
+  adversarial (9 cases, identified by label["injection"] being non-null). Run through the
   identical pipeline as any other case -- adversarial-ness is a property of narrative/HAR/
   XML content the pipeline reads, not a different code path here. eval/metrics.py
-  separates these out for the injection-resistance metric using the same label field.
+  separates these out for the injection-resistance metric using the same label field,
+  reading each case's own reaches_prompt/evades_detector rather than a hardcoded id list.
+  Five of the nine (added 2026-08-23 to exercise a second live prompt path -- see
+  eval/metrics.py's module docstring) have no recorded fixture yet, so --replay-only over
+  the full corpus currently raises ReplayMiss on them; run `make eval` once (needs a live
+  model) to populate their fixtures before relying on `make eval-replay` end to end.
 """
 
 from __future__ import annotations

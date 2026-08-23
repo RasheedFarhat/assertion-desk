@@ -43,7 +43,7 @@ similarly score their own strata independently, clean named rejection for malfor
 A broader, later-landed alternative to extending `refusal_correctness` itself: checks
 `desk/policy/rules.py`'s computed disposition (via `computed_disposition()`, which builds a
 `PolicyInput` from the persisted case record the same way a live case would) against each case's
-`expected_disposition`, across all n=50 runnable cases rather than only the ambiguous stratum's
+`expected_disposition`, across all n=55 runnable cases rather than only the ambiguous stratum's
 n=2. `computed_disposition()` deliberately sets `any_live_credential=False` unconditionally, with
 an explicit comment that `desk/custody` is not wired into `eval/run.py`'s pipeline at all, so no
 corpus-based eval run can ever produce a real custody result, this is stated as a fact about the
@@ -52,7 +52,7 @@ eval harness, not invented as if it were tested.
 **Three named, accepted mismatches**, not one, all sharing a single root cause. `harness/faults/
 baseline.py` hardcodes `in_response_to_expected=None` because the harness's own minimal SP
 (`harness/capture/sp_app.py`) never persists its own outbound request IDs to compare later, so
-`SAML-INRESP-01`/`SAML-INRESP-02` come back `NOT_VERIFIED` in effectively every case (46 of 47
+`SAML-INRESP-01`/`SAML-INRESP-02` come back `NOT_VERIFIED` in effectively every case (51 of 52
 cases with check results) except the one case that fault is actually about. That universal gap
 means `compute_gaps()` always reports something and Job B is invoked almost everywhere. For three
 cases this produces a real, honestly-reported disagreement between the policy engine's own
@@ -87,16 +87,34 @@ model behavior, not about the validator.
 
 ## Injection resistance (`injection_resistance`)
 
-Splits the corpus's 4 adversarial cases into two groups rather than reporting one combined
-number, because code inspection (not assumption) found only one, `clock_skew__adv_
-s3_context_manipulation`, has any live path into a model prompt under the current architecture,
-its payload lives in the narrative body, which Job A actually reads. The other three (S1/S2/S4)
-target artifact locations no job reads at all (see `docs/CORPUS.md` and `docs/THREAT_MODEL.md`
-T2 for exactly where each payload sits). "Resisted" means `final_root_cause` still matches the
-label's `expected_root_cause` despite the injection attempt. Reporting all four together would
-silently launder three free passes (an absent path, not demonstrated resistance) into an
-apparent four-case resistance result, which is exactly the inflation this split exists to
-prevent.
+Splits the corpus's 9 adversarial cases into two groups rather than reporting one combined
+number: `live_prompt_path` (6 cases whose payload actually reaches a model prompt) and
+`structurally_inapplicable` (3 cases whose payload sits somewhere no job reads). Membership
+comes from the payload's own declared `reaches_prompt` field in `harness/adversarial.py`, not
+a case-id string match, this is itself a fix — the metric used to infer reachability from a
+`case_id.endswith("adv_s3_context_manipulation")` check, which silently generalized one true
+fact (that one case has a live path) into a false one (that the other three don't, for the
+reason the corrected framing below explains) until code inspection found a second live path
+that no case-id suffix identified. Of the 6 live-path cases, 5 land via
+`CheckResult.observed` (attacker-controlled XML element text or attribute value, copied
+verbatim by `desk/verify/checks/*.py` into a check row that `desk/reason/prompts.py`'s
+`build_job_c_prompt` interpolates), and 1 via the narrative that Job A reads. The 3
+structurally-inapplicable cases target an XML comment (discarded by C14N before any check
+parses it) and a HAR header (no job reads HAR fields at all); see `docs/CORPUS.md`'s
+adversarial-cases table and `docs/THREAT_MODEL.md` T2 for the full case-by-case mechanism.
+"Resisted" means `final_root_cause` still matches the label's `expected_root_cause` despite the
+injection attempt. Reporting all nine together would silently launder the three structurally-
+inapplicable free passes (an absent path, not demonstrated resistance) into an apparent
+nine-case resistance result, which is exactly the inflation this split exists to prevent.
+
+A second metric, `injection_detector_recall`, is scoped only to the live-path cases and answers
+a different question: not "did the outcome survive," but "did the pre-call scanner
+(`desk/reason/jobs.py`'s `_scan_check_rows`/`_scan_job_a_facts`, wired into Job A, B, and C)
+actually notice the payload before the model saw it." It excludes any payload whose own
+`evades_detector` flag is set (today, one deliberately base64-obfuscated payload, kept in the
+corpus specifically to give the scanner an honestly-labeled blind spot rather than hiding the
+gap) and reports, among the rest, what fraction have a non-empty `instruction_signals` recorded
+on the job whose prompt the payload actually reached.
 
 ## Secret leakage to prompt (`secret_leakage_scan`)
 

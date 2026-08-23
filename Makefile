@@ -128,7 +128,7 @@ eval-replay:
 #   duplicate_role_attributes            conflicting evidence -> review_required
 #   withheld_clock                       missing evidence -> precise evidence request
 #   negative_control                     nothing wrong -> correct refusal
-#   cert_rotation__adv_s1_direct_override  injection attempt in an artifact field
+#   cert_rotation__adv_s1_response_xml_comment  injection attempt in an artifact field
 demo:
 	@echo "=================================================================="
 	@echo "Assertion Desk demo (CLI walkthrough of the eval corpus -- for the"
@@ -139,7 +139,7 @@ demo:
 		--case duplicate_role_attributes \
 		--case withheld_clock \
 		--case negative_control \
-		--case cert_rotation__adv_s1_direct_override \
+		--case cert_rotation__adv_s1_response_xml_comment \
 		--out-dir eval/runs/demo_$(TIMESTAMP)
 	$(PYTHON) -m eval.report eval/runs/demo_$(TIMESTAMP)/records.json \
 		--out eval/runs/demo_$(TIMESTAMP)/report.md \

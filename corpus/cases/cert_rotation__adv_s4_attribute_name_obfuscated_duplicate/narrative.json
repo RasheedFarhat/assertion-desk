@@ -1,0 +1,4 @@
+{
+  "subject": "SSO login failure - details attached",
+  "body": "We're seeing single sign-on failures affecting every user, starting since this morning. The one change on our side around that time: our identity team rotated a signing certificate over the weekend. What we've already checked: had a few people clear cookies and retry. Please let us know what artifact or evidence you need from us to pin this down."
+}

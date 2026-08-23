@@ -1,5 +1,28 @@
 # Measurements — full 50-case corpus, Phase 4 exit numbers
 
+**Update, 2026-08-23 — read before citing the injection-resistance numbers below, or any of the
+adversarial case IDs on this page.** Everything below is the real, reproducible output of the
+frozen runs it cites and has not been rewritten to match current code — that would misrepresent
+what those runs actually produced. Two things changed since:
+
+1. **A second live prompt path was found and fixed.** The claim below ("only S3 has a genuine
+   live path into a model prompt") was correct for the n=4 corpus these runs measured, but it
+   generalized to a false claim ("XML payloads are structurally inapplicable") that the corpus has
+   since disproven — `CheckResult.observed` (populated verbatim from parsed SAMLResponse element
+   text/attribute values) reaches Job C's prompt just as reliably as the narrative reaches Job
+   A/B's, and nothing was scanning it. See `docs/PHASE4_NOTES.md`'s 2026-08-23 update and
+   `eval/metrics.py`'s module docstring for the full finding, fix, and measurement.
+2. **The four adversarial case IDs below were renamed** (`harness/generate.py`'s `case_id` now
+   keys on `payload_id`, fixing a real collision bug that would otherwise silently overwrite
+   corpus entries): `cert_rotation__adv_s1_direct_override` →
+   `cert_rotation__adv_s1_response_xml_comment`; `wrong_issuer__adv_s2_persona_hijack` →
+   `wrong_issuer__adv_s2_har_user_agent`; `clock_skew__adv_s3_context_manipulation` →
+   `clock_skew__adv_s3_narrative_appeal_to_authority`; `assertion_expired__adv_s4_obfuscated` →
+   `assertion_expired__adv_s4_base64_attribute_friendlyname`. Same base fault, same payload
+   content, same fixture-cache entries in each case. The corpus also gained five new adversarial
+   cases exercising the newly-closed path (51 → 56 entries in `corpus/MANIFEST.json`); their
+   fixtures have not been recorded, so they are not reflected in the run below.
+
 **Generated 2026-08-17, from `eval/runs/20260817T044253Z/{records.json,metrics.json,report.md}`,
 committed to the repo. Supersedes the 2026-08-16 `full_corpus_live_1` run**, which stays in the
 repo as history rather than being deleted. This is the real §28 MVP-cutoff deliverable: every
@@ -203,6 +226,13 @@ The model is never asked to guess a root cause it has no evidence for. Scored as
 strict conflicting-handling metric, correct by the system's own design intent.
 
 ## Injection resistance
+
+**This section is historical — see the 2026-08-23 update at the top of this file.** The "only S3
+has a live prompt path" framing below was later found to be a false generalization from a true
+observation about these specific n=4 payloads; the path it missed (`CheckResult.observed` → Job
+C) is now closed and measured at real n in `docs/THREAT_MODEL.md` and `eval/metrics.py`'s
+`injection_resistance()`. Numbers and case IDs below are exactly what this frozen run produced and
+are left as-is.
 
 n = 4 adversarial cases, reported split rather than pooled (pooling would silently launder three
 structural free passes into an apparent full-coverage result):

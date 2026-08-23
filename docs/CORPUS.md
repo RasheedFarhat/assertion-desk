@@ -26,52 +26,66 @@ identical to the plan's "~20" estimate:
 `stripped_relaystate`, `truncated_response`, `unsupported_nameid_format`, `withheld_cert`,
 `withheld_clock`, `wrong_audience`, `wrong_binding`, `wrong_issuer`.
 
-**51 total cases, 50 executable.** One, `sha1_signature_downgrade`, is a documented,
+**56 total cases, 55 executable.** One, `sha1_signature_downgrade`, is a documented,
 deliberately unimplemented gap (`category: documented_gap` in the manifest), not a silently
 broken case. This is far short of the plan's aspirational ~250; every percentage in
 `docs/MEASUREMENTS.md` rests on a sample this small, and single-case swings move the headline
-numbers by 2.5 points each.
+numbers by under 2 points each. (`docs/MEASUREMENTS.md`'s committed baseline run predates the
+five newest adversarial cases below — see that file's 2026-08-23 update — so its own per-case
+denominators still reflect 51/50.)
 
 **Case categories** (the manifest's `category` field, distinct from difficulty strata):
 `context_mismatch` (26, a fault that produces a mismatch between two pieces of otherwise-valid
 evidence, e.g. a signing cert that does not match metadata), `artifact_mutation` (16, a fault
-that mutates a captured artifact directly), `live_capture` (7, faults captured by driving a real
-login against a genuinely misconfigured Keycloak/SP pair rather than by post-hoc mutation),
-`baseline` (1), `documented_gap` (1, the `sha1_signature_downgrade` case above).
+that mutates a captured artifact directly), `live_capture` (12, faults captured by driving a real
+login against a genuinely misconfigured Keycloak/SP pair rather than by post-hoc mutation, plus
+the adversarial overlays layered onto `cert_rotation`, itself a `live_capture` fault), `baseline`
+(1), `documented_gap` (1, the `sha1_signature_downgrade` case above).
 
-**Difficulty strata, real counts** (the manifest's `difficulty` field): `normal` 45,
+**Difficulty strata, real counts** (the manifest's `difficulty` field): `normal` 50,
 `malformed` 2, `ambiguous` 2, `conflicting` 1, unset 1 (the documented gap). All far below the
 plan's aspirational per-stratum targets (`normal` ~120, `ambiguous` ~40, `conflicting` ~25,
 `malformed` ~25). The plan's separate `adversarial` stratum does not exist as a `difficulty`
 value at all; adversarial cases are instead tagged `normal` for difficulty and carry a separate
-`injection` field (see below), because each of the 4 adversarial cases already has a genuine
+`injection` field (see below), because every adversarial case's base fault already has a genuine
 `FAILED` check independent of its injection payload, so they behave like `normal` cases for
 routing purposes. See `docs/THREAT_MODEL.md`'s T2 entry for the full detail on what that means
 for injection-resistance measurement.
 
-**Narrative registers, real counts** (the manifest's `register` field): `precise` 26 (the
+**Narrative registers, real counts** (the manifest's `register` field): `precise` 31 (the
 majority, since most cases need a straightforward baseline narrative), `vague` 6,
 `confident_misdiagnosis` 6, `hostile` 6, `non_native` 6, unset 1 (the documented gap has no
 narrative). This is close to the plan's five-register design, just not evenly distributed
 across it, `precise` dominates because most cases are single-fault `normal` cases that do not
 need a stress-test register.
 
-**Adversarial cases, 4 of 51**, each carrying an `injection` field with a `payload_id`,
+**Adversarial cases, 9 of 56**, each carrying an `injection` field with a `payload_id`,
 `taxonomy_class` (S1 direct override through S4 obfuscated, matching the published four-class
-log-substrate injection taxonomy the plan cites), `artifact_kind`, `source_location`, and the
-literal `span_excerpt`:
+log-substrate injection taxonomy the plan cites), `artifact_kind`, `source_location`, the literal
+`span_excerpt`, and (added 2026-08-23, see below) `reaches_prompt`/`landing_site`/
+`evades_detector`:
 
-| Case | Taxonomy | Payload lives in |
-|---|---|---|
-| `cert_rotation__adv_s1_direct_override` | S1 | an XML comment inside the SAMLResponse |
-| `wrong_issuer__adv_s2_persona_hijack` | S2 | the HAR's captured User-Agent header |
-| `clock_skew__adv_s3_context_manipulation` | S3 | the narrative body |
-| `assertion_expired__adv_s4_obfuscated` | S4 | base64 inside an attribute adjacent to the SAMLResponse |
+| Case | Taxonomy | Payload lives in | Reaches a live prompt? |
+|---|---|---|---|
+| `cert_rotation__adv_s1_response_xml_comment` | S1 | an XML comment inside the SAMLResponse | No — C14N strips comments before any check reads the XML |
+| `wrong_issuer__adv_s2_har_user_agent` | S2 | the HAR's captured User-Agent header | No — no job reads HAR content |
+| `clock_skew__adv_s3_narrative_appeal_to_authority` | S3 | the narrative body | Yes — `narrative` (Job A's subject/body) |
+| `assertion_expired__adv_s4_base64_attribute_friendlyname` | S4 | base64 inside an attribute adjacent to the SAMLResponse | No, and deliberately obfuscated — evades the detector even where reachable |
+| `cert_rotation__adv_s1_assertion_audience_direct_override` | S1 | an added `<Audience>` element's text | Yes — `CheckResult.observed[SAML-AUD-01]` |
+| `cert_rotation__adv_s4_attribute_name_obfuscated_duplicate` | S4 | a duplicated `Attribute Name`, base64-encoded | Yes, but deliberately obfuscated — `CheckResult.observed[SAML-ATTR-01]`, evades the detector |
+| `cert_rotation__adv_s2_nameid_format_persona_hijack` | S2 | the `NameID`'s `Format` attribute | Yes — `CheckResult.observed[SAML-NAMEID-02]` |
+| `cert_rotation__adv_s1_response_destination_direct_override` | S1 | the `Response`'s `Destination` attribute | Yes — `CheckResult.observed[SAML-DEST-01]` |
+| `cert_rotation__adv_s3_response_issuer_context_manipulation` | S3 | the `Response`'s `Issuer` element text | Yes — `CheckResult.observed[SAML-ISS-01]` |
 
-Only S3's payload sits in a location any current job's prompt actually reads (Job A's narrative
-subject/body). See `docs/THREAT_MODEL.md` T2 for what that means for measured injection
-resistance, and do not read "4 adversarial cases" as "4 cases that reached a model with a live
-injection attempt", only one did.
+Six of nine payloads now reach a real model prompt (five via `CheckResult.observed`, found by
+reading `desk/verify/checks/*.py` directly: those checks populate `observed` verbatim from parsed
+element text and attribute values, and `desk/reason/jobs.py` builds Job C's prompt straight from
+those check rows). This corrects an earlier, narrower version of this table (4 cases, only one
+reachable) that had generalized "these three specific payloads are unreachable" into "XML payloads
+are structurally inapplicable" — a claim the code never actually supported. See
+`docs/THREAT_MODEL.md` T2 and `docs/PHASE4_NOTES.md`'s 2026-08-23 update for the full finding, and
+`eval/metrics.py`'s `injection_resistance()` for how reachability is now measured (read off each
+payload's own `reaches_prompt` declaration, not inferred from a case-id string).
 
 **Two cases with no SAMLResponse at all.** `negative_control` sets `no_saml_response_reason`
 explicitly: the IdP rejected the credential before producing a SAMLResponse (the login itself

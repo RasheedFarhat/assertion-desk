@@ -8,7 +8,7 @@
 
 <p><a href="#run-the-proof">Quickstart</a> · <a href="#how-it-works">Architecture</a> · <a href="#measured-not-marketed">Evaluation</a> · <a href="docs/THREAT_MODEL.md">Threat model</a> · <a href="docs/LIMITATIONS.md">Limitations</a></p>
 
-<p><code>make eval-replay</code> · 50-case offline proof · demo-scoped, not production-ready</p>
+<p><code>make eval-replay</code> · 55-case offline proof · demo-scoped, not production-ready</p>
 
 <img src="https://raw.githubusercontent.com/RasheedFarhat/assertion-desk/main/docs/media/demo.gif" alt="Assertion Desk verifying a failed SAML certificate check, then drafting a root-cause explanation grounded in that evidence" width="100%">
 
@@ -36,7 +36,22 @@ python3 -m venv .venv
 make eval-replay
 ```
 
-The replay runs all 50 executable cases, writes a fresh report and `metrics.json`, and reproduces the committed evaluation baseline. Then explore the system from three angles:
+The replay runs every executable case in the corpus, writes a fresh report and `metrics.json`, and reproduces the committed evaluation baseline.
+
+> [!WARNING]
+> **As of 2026-08-23, `make eval-replay` fails on a fresh checkout.** The corpus grew from 51 to
+> 56 cases (55 executable) when a second live model-prompt path was disclosed and fixed — see
+> [`docs/PHASE4_NOTES.md`](docs/PHASE4_NOTES.md)'s 2026-08-23 update. The five newest adversarial
+> cases have no recorded Job C fixture yet, so `eval/run.py` correctly raises `ReplayMiss` and
+> aborts the *entire* run rather than silently skipping them — right now the command writes zero
+> output files, for any case, not a partial result. Recording those fixtures needs one live model
+> pass (`make eval`) and is a deliberate, separate step not yet taken. Until it is: `make demo`
+> below still runs cleanly end to end on five fixture-covered cases, and any individual
+> fixture-covered case still replays on its own, e.g.
+> `.venv/bin/python3 -m eval.run --replay-only --case cert_expired --out-dir /tmp/one-case`.
+> Full detail in [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md#accuracy).
+
+Then explore the system from three angles:
 
 ```bash
 make demo   # five representative cases, replay-only
@@ -128,6 +143,18 @@ The implementation details and dependency boundaries are mapped in [Architecture
 ## Measured, not marketed
 
 These results come from three committed runs against the same 50 executable cases (of 51 corpus entries, with one explicitly documented generator gap): the 2026-08-17 local-fallback pass (`qwen3:1.7b` via Ollama), the 2026-08-19 live Gemini pass (`gemini-3.1-flash-lite`, not the flagship; see the warning below), and a 2026-08-19 `qwen3:1.7b` re-run after a Job C prompt fix aimed at two systematic root-cause-naming biases the first two runs turned up. The qwen3 column below is the fixed, current number; what changed and why is in [the prompt-fix section of the full measurements](docs/MEASUREMENTS.md#prompt-fix-for-the-two-named-biases-2026-08-19).
+
+> **Update, 2026-08-23:** the corpus has since grown to 56 cases (55 executable); the table below
+> is left exactly as these three specific runs measured it, not restated to a new denominator that
+> would misrepresent what they actually saw. The injection-resistance rows in particular used an
+> S1/S2/S3/S4 case-id scheme that has since been renamed and a reachability claim ("only S3 has a
+> live path") that has since been corrected — a second live prompt path was found, and now 6 of 9
+> adversarial cases reach a model prompt, not 1 of 4. See
+> [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md#accuracy),
+> [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) T2, and
+> [`docs/PHASE4_NOTES.md`](docs/PHASE4_NOTES.md)'s 2026-08-23 update for the current picture. Five
+> of the six newly-reachable cases have no recorded fixture yet, so no new corpus-wide resistance
+> number is published below until that gated step is taken.
 
 | Measurement | `qwen3:1.7b` | `gemini-3.1-flash-lite` | What it means |
 |---|---:|---:|---|

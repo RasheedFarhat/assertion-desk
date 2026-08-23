@@ -43,36 +43,57 @@ change case disposition, because the module that decides disposition never reads
 This holds even if `desk/ground` had a bug, which is the actual point of putting the defense
 here rather than relying only on the grounding veto.
 
-**Heuristic pre-call scanner, real but narrower than the plan implies.**
+**Heuristic pre-call scanner, wired into all three jobs.**
 `desk/reason/prompts.py:detect_instruction_shaped_spans()` regex-matches instruction-shaped text
 (`SYSTEM:`, "ignore prior instructions", "mark this case resolved", "skip the certificate
-check", and seven similar patterns) and is deliberately over-inclusive, a real customer writing
+check", and similar patterns) and is deliberately over-inclusive, a real customer writing
 "the system: keeps rejecting me" trips it, which is an acceptable cost for a signal that only
-counts, never blocks. **It is only wired into Job A**, run against the narrative's `subject` and
-`body`. `desk/reason/jobs.py` hard-codes `instruction_signals=[]` for Job B and Job C, because
-neither reads raw customer prose (Job B reads the deterministic gap list and Job A's already-
-extracted facts; Job C reads check results). Of the corpus's 4 adversarial cases, only one,
-`clock_skew__adv_s3_context_manipulation`, carries its payload in the narrative body where this
-scanner can see it. The other three carry theirs in an artifact location nothing scans yet:
+counts, never blocks. Job A runs it against the narrative's `subject` and `body`, as before. Job
+B and Job C now also run it (`desk/reason/jobs.py`'s `_scan_job_a_facts`, `_scan_check_rows`)
+against the two other places attacker-controlled text actually reaches a live prompt: Job A's
+own free-text extracted facts (`onset`, `recent_change`, `reporter_role`, `wrong_belief`,
+`already_tried` — none of these are a closed enum, so text an attacker got past Job A's
+extraction can be re-injected into Job B's and Job C's prompts via `job_a_facts`), and each
+check row's `observed` field, which `desk/verify/checks/*.py` populate verbatim from parsed
+SAMLResponse element text and attribute values and which `desk/reason/prompts.py`'s
+`build_job_c_prompt` interpolates directly.
 
-| Case | Taxonomy | Payload location |
-|---|---|---|
-| `cert_rotation__adv_s1_direct_override` | S1 direct override | an XML comment inside the SAMLResponse |
-| `wrong_issuer__adv_s2_persona_hijack` | S2 persona hijack | the HAR's captured `User-Agent` header on the ACS POST |
-| `clock_skew__adv_s3_context_manipulation` | S3 context manipulation | the narrative body (the one case the scanner covers) |
-| `assertion_expired__adv_s4_obfuscated` | S4 obfuscated | base64 inside an attribute adjacent to the SAMLResponse |
+This closes a real, previously undisclosed gap: `run_job_c` used to hard-code
+`instruction_signals=[]` with the reasoning "Job C reads check results, not raw customer prose" —
+missing that check results *embed* customer-controlled prose verbatim. Of the corpus's 9
+adversarial cases, 6 now have a genuine live path into a model prompt, found by reading
+`desk/verify/checks/*.py` directly rather than assumed:
 
-**Why this is a smaller gap than it sounds.** All 4 adversarial cases already carry a genuine
-`FAILED` check independent of their injection payload, so `desk/policy`'s `has_failed_check`
-branch routes every one of them to `review_required` regardless of whether the heuristic scanner
-fires. The structural defense (model has no authority over disposition) covers all four; the
-counting signal covers one of four. Widening span detection to HAR headers and XML comments is
-named, real future work, not claimed as done.
+| Case | Taxonomy | Payload location | Reaches a live prompt? |
+|---|---|---|---|
+| `cert_rotation__adv_s1_response_xml_comment` | S1 direct override | an XML comment inside the SAMLResponse | No — C14N strips comments before any check parses them |
+| `wrong_issuer__adv_s2_har_user_agent` | S2 persona hijack | the HAR's captured `User-Agent` header on the ACS POST | No — no job reads HAR content |
+| `clock_skew__adv_s3_narrative_appeal_to_authority` | S3 context manipulation | the narrative body | Yes — Job A's `subject`/`body` |
+| `assertion_expired__adv_s4_base64_attribute_friendlyname` | S4 obfuscated | base64 inside an attribute adjacent to the SAMLResponse | No, and obfuscated even where it would be |
+| `cert_rotation__adv_s1_assertion_audience_direct_override` | S1 direct override | an added `<Audience>` element's text | Yes — `CheckResult.observed[SAML-AUD-01]` |
+| `cert_rotation__adv_s4_attribute_name_obfuscated_duplicate` | S4 obfuscated | a duplicated `Attribute Name`, base64-encoded | Yes, but obfuscated — evades the detector by design |
+| `cert_rotation__adv_s2_nameid_format_persona_hijack` | S2 persona hijack | the `NameID`'s `Format` attribute | Yes — `CheckResult.observed[SAML-NAMEID-02]` |
+| `cert_rotation__adv_s1_response_destination_direct_override` | S1 direct override | the `Response`'s `Destination` attribute | Yes — `CheckResult.observed[SAML-DEST-01]` |
+| `cert_rotation__adv_s3_response_issuer_context_manipulation` | S3 context manipulation | the `Response`'s `Issuer` element text | Yes — `CheckResult.observed[SAML-ISS-01]` |
 
-**Measured.** Injection resistance on the one case with a genuine live path into a model prompt:
-100% resisted (n=1). The other three "unaffected" outcomes reflect the artifact never being read
-into a prompt at all, not demonstrated resistance to a payload a model actually saw. See
-`docs/LIMITATIONS.md` for the same caveat stated as a limitation.
+**Why the structural mitigation is the load-bearing one regardless.** Every adversarial case's
+base fault already carries a genuine `FAILED` check independent of its injection payload, so
+`desk/policy`'s `has_failed_check` branch routes every one of them to `review_required` whether
+or not the heuristic scanner fires. The structural defense above (model has no authority over
+disposition) covers all nine; the counting signal is real defense-in-depth on top of that, not
+the thing actually preventing a disposition change. Of the 6 reachable payloads, 5 are
+deliberately non-obfuscated (chosen to exercise the existing detector, not evade it) and one
+(the duplicated-Attribute-Name payload) is deliberately base64-obfuscated to prove the detector's
+real, honestly-labeled blind spot — confirmed by direct testing that
+`detect_instruction_shaped_spans` catches all 5 and misses the 1, matching each payload's own
+declared `evades_detector` flag.
+
+**Measured.** See `eval/metrics.py`'s `injection_resistance()` for the current split (reachable
+vs. structurally inapplicable) and its `injection_detector_recall` metric (among reachable,
+non-obfuscated payloads, the fraction actually flagged by the scanner), and `docs/MEASUREMENTS.md`
+for the frozen, reproducible baseline run — which predates the five newest cases above and still
+reports the earlier n=4 picture; see that file's 2026-08-23 update. `docs/LIMITATIONS.md` states
+the same caveat as a limitation.
 
 ## T3 - XXE, entity expansion, and malformed XML/HAR
 
@@ -93,7 +114,7 @@ gives lxml's own built-in depth/complexity ceiling, which is real protection, bu
 same as an explicit, named, tested byte-size or decompression-ratio limit the plan called for.
 This is an honest gap, not a claimed mitigation.
 
-**Corpus coverage.** 2 of 51 cases are labeled `malformed` in `corpus/MANIFEST.json`, far short
+**Corpus coverage.** 2 of 56 cases are labeled `malformed` in `corpus/MANIFEST.json`, far short
 of the plan's aspirational ~25. Small, real, not padded.
 
 ## T4 - SSRF via IdP metadata URL
@@ -127,7 +148,7 @@ here rather than only in a terms-of-service page nobody reads.
 
 **Mitigation.** `desk/policy/rules.py`'s disposition vocabulary includes `auto`, but the current
 rule table never emits it, confirmed both by reading the rule table's own docstring and by
-inspection of all 51 corpus `label.json` files (zero have `expected_disposition == "auto"`). This
+inspection of all 56 corpus `label.json` files (zero have `expected_disposition == "auto"`). This
 is a real, checked property, not an oversight, per the module's own comment. Unknown or
 unrecognized verifier states resolve to `review_required` by default, "default-deny," not a
 silent pass-through. Every case that would reach a customer needs human approval in the full
@@ -162,8 +183,10 @@ and it has three entries, all tracing to one shared root cause: `harness/faults/
 hardcodes `in_response_to_expected=None` because the harness's own minimal SP
 (`harness/capture/sp_app.py`) never persists its own outbound request IDs to check a response
 against later. That makes `SAML-INRESP-01`/`SAML-INRESP-02` come back `NOT_VERIFIED` in
-effectively every case (46 of 47 cases with check results), not just the one case that fault is
-actually about, which means `compute_gaps()` almost always reports something.
+effectively every case (51 of 52 cases with a `SAML-INRESP-01` entry in their check results; see
+`eval/metrics.py`'s comment on `KNOWN_DISPOSITION_MISMATCHES` for the full recount after the
+2026-08-23 corpus growth), not just the one case that fault is actually about, which means
+`compute_gaps()` almost always reports something.
 
 - **`duplicate_role_attributes`** (the corpus's one `conflicting` case): its real pipeline signals
   are indistinguishable from the `withheld_cert`/`withheld_clock` `ambiguous` cases under the

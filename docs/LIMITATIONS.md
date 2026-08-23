@@ -39,31 +39,48 @@ shows it, not softened into marketing hedging. Nothing here is deferred silently
   `docs/MEASUREMENTS.md` are fixed), which is a real and useful claim. It is not the same
   claim as measuring disagreement across repeated live runs, and that measurement has not been
   taken.
-- **Injection resistance rests on n=4 adversarial cases, one of which has a genuine live path
-  into a model prompt.** The other three payloads target artifact locations (an XML comment, a
-  HAR User-Agent header, a base64-encoded attribute value) that no job currently reads, so 2 of
-  3 "unaffected" outcomes reflect absence of a path, not demonstrated resistance to a payload a
-  model actually saw. `desk/policy/rules.py` never lets a model claim set the case disposition
-  (confirmed by reading the module: every `PolicyInput` field traces to a verifier fact, a
-  grounding verdict, or a pre-call structural signal, never parsed model text), which is the
-  structural defense the plan calls for, but it has not been exercised by anywhere near enough
-  adversarial variety to call injection resistance proven in general.
+- **Injection resistance rests on n=9 adversarial cases, six of which have a genuine live path
+  into a model prompt** (five via `CheckResult.observed`, populated verbatim from parsed
+  SAMLResponse element text/attribute values and interpolated straight into Job C's prompt; one
+  via the narrative into Job A). The other three payloads target artifact locations (an XML
+  comment, stripped by C14N before any check parses it; a HAR User-Agent header, which no job
+  reads) that stay genuinely unreachable, so their "unaffected" outcomes reflect absence of a
+  path, not demonstrated resistance to a payload a model actually saw. This corrects an earlier,
+  narrower version of this claim (n=4, one live path) that generalized "these three specific
+  payloads are unreachable" into "XML payloads are structurally inapplicable" — a claim the code
+  never actually supported; see `docs/PHASE4_NOTES.md`'s 2026-08-23 update for how that was
+  found. `desk/reason/jobs.py`'s pre-call scanner now runs against all three jobs' real
+  attacker-reachable text (previously only Job A's narrative), and correctly flags 5 of the 6
+  reachable payloads; the sixth is deliberately base64-obfuscated to prove the scanner's honestly-
+  labeled blind spot (`evades_detector` on the payload itself), not left undisclosed. `desk/
+  policy/rules.py` never lets a model claim set the case disposition regardless (confirmed by
+  reading the module: every `PolicyInput` field traces to a verifier fact, a grounding verdict,
+  or a pre-call structural signal, never parsed model text), which is the structural defense the
+  plan calls for — but n=9 across four taxonomy classes, mostly concentrated on one base fault
+  (`cert_rotation`, chosen because its `expected_states` already declares the signature failure
+  every XML-text-mutating payload mechanically causes), is still nowhere near enough adversarial
+  variety to call injection resistance proven in general. Five of the six newly-reachable cases
+  have not yet had a live model call recorded against them (`fixtures/` population is a separate,
+  explicit, model-requiring step), so `docs/MEASUREMENTS.md`'s published outcome-resistance
+  numbers still reflect only the original n=4.
 
 ## Corpus
 
-- **51 cases total, 50 executable, not the plan's aspirational ~250.** `corpus/MANIFEST.json`
-  has 51 entries; one (`sha1_signature_downgrade`) is a documented, deliberately unimplemented
+- **56 cases total, 55 executable, not the plan's aspirational ~250.** `corpus/MANIFEST.json`
+  has 56 entries; one (`sha1_signature_downgrade`) is a documented, deliberately unimplemented
   gap. The ground truth is real, produced by injecting faults into a live Keycloak instance
   rather than authored by hand, which is the point, but the sample size behind every
   percentage in `docs/MEASUREMENTS.md` is small enough that single-case swings move the
-  headline numbers by 2.5 points each.
-- **Roughly 30 of the 51 cases share one baseline SAML response and certificate pair.** A
+  headline numbers by 2.5 points each. (The published `docs/MEASUREMENTS.md` baseline run
+  predates 2026-08-23's five newest adversarial cases, so its own accuracy denominators still
+  reflect the 51/50-case corpus, not this 56/55 count -- see that file's own update note.)
+- **Roughly 30 of the 56 cases share one baseline SAML response and certificate pair.** A
   corpus-contamination incident (documented in `docs/PHASE4_NOTES.md` and summarized in
   `docs/MEASUREMENTS.md`) already showed that a stale shared baseline can silently corrupt
   every case built from it at once. The bug that incident caused is fixed and now caught by a
   hardened self-test, but the underlying structural fact, many cases inherit one shared
   baseline rather than each being independently generated end to end, remains and is worth
-  knowing before trusting any claim that the 51 cases are 51 fully independent trials.
+  knowing before trusting any claim that the 56 cases are 56 fully independent trials.
 - **The identity provider is Keycloak, not Entra, Okta, or Ping.** Any vendor-specific quirk
   named in this repo's documentation or prompts is, at most, modeled from public documentation
   and must be labeled as modeled. No claim of Entra, Okta, or Ping production experience is

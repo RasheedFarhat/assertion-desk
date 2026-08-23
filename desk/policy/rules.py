@@ -13,7 +13,7 @@ comment exactly: auto | review_required | escalate | awaiting_evidence. `auto` i
 defined in that vocabulary but this rule table never emits it -- see the docstring on
 _decide_base_disposition for why that is a real property of the rule table, not an
 oversight, and matches the fact that zero corpus cases have expected_disposition ==
-"auto" either (confirmed by inspection of all 51 label.json files, 2026-08-17).
+"auto" either (confirmed by inspection of all 56 label.json files, 2026-08-23).
 
 Default-deny (plan section 15's table: "Unknown state -> review. Default deny"): any
 verify_state this table does not explicitly recognize resolves to review_required, the
@@ -44,22 +44,42 @@ reported limitation -- see tests/policy/test_rules.py's corpus parity test, whic
 asserts the mismatch stays a mismatch rather than hiding it, and eval/metrics.py's
 disposition_accuracy(), which reports it by name rather than excluding it silently.
 
-INJECTION SIGNAL SCOPE -- narrower than it sounds. instruction_signal_detected is real
-(desk/reason/prompts.py's detect_instruction_shaped_spans(), run pre-call against
-de-fanged customer prose), but desk/reason/jobs.py only calls it from run_job_a, over
-the narrative subject/body. run_job_b and run_job_c hard-code instruction_signals=[]
-with a comment explaining why (Job B reads deterministic gap data + already-extracted
-facts, Job C reads check results -- neither reads raw customer prose). Of the corpus's
-4 adversarial cases, only clock_skew__adv_s3_context_manipulation carries its payload
-in the narrative; the other three (cert_rotation__adv_s1_direct_override,
-wrong_issuer__adv_s2_persona_hijack, assertion_expired__adv_s4_obfuscated) carry theirs
-in a HAR header or an XML comment, which nothing in this pipeline scans for
-instruction-shaped spans yet. This module's injection branch is real defense-in-depth,
-not a complete injection detector, and it happens to be moot for grading this corpus:
-all 4 adversarial cases already have a genuine FAILED check independent of their
-injection payload, so has_failed_check routes them to review_required regardless of
-whether instruction_signal_detected fires. Widening span detection to HAR headers and
-XML comments is future work, not claimed here.
+INJECTION SIGNAL SCOPE. instruction_signal_detected is real (desk/reason/prompts.py's
+detect_instruction_shaped_spans(), run pre-call against de-fanged customer-controlled
+text) and is now computed across all three jobs, not just Job A -- see
+desk/case/orchestrate.py's policy_input_from_pipeline_result() and eval/metrics.py's
+computed_disposition(), which OR together job_a/job_b/job_c's instruction_signals field
+for field. This module still reads only the resulting boolean, never a per-job
+breakdown or a corpus label field, which keeps the ground-truth-leakage boundary above
+intact.
+
+This scope used to be genuinely narrower, and wrong in a way worth naming because it
+was found by reading the code, not assumed: desk/reason/jobs.py's run_job_b and
+run_job_c both hard-coded instruction_signals=[], on the reasoning that "Job B reads
+deterministic gap data + already-extracted facts, Job C reads check results -- neither
+reads raw customer prose." That reasoning missed that check results themselves embed
+customer-controlled text: desk/verify/checks/*.py populate CheckResult.observed
+verbatim from parsed SAMLResponse element text and attribute values (desk/verify/
+parsed.py), and desk/reason/jobs.py's own check_rows feed that observed field straight
+into Job C's prompt (desk/reason/prompts.py's build_job_c_prompt). It also missed that
+Job A's schema leaves several fields (onset, recent_change, reporter_role, wrong_belief,
+already_tried) as unconstrained free text, so a payload surviving Job A's extraction can
+be re-injected into Job B's and Job C's prompts via job_a_facts even when it never
+touched a check result directly. Both gaps are closed: run_job_c now scans check_rows'
+observed field (_scan_check_rows), and run_job_b/run_job_c both scan job_a_facts'
+free-text fields (_scan_job_a_facts) -- see their docstrings in desk/reason/jobs.py.
+Obfuscated payloads (base64-encoded text) still evade detect_instruction_shaped_spans
+by design, and are labeled evades_detector=True on their harness/adversarial.py
+InjectionPayload rather than silently miscounted as resisted; see
+eval/metrics.py's injection_resistance() for how that is measured and reported.
+
+This module's injection branch remains real defense-in-depth, not a complete injection
+detector -- and it is still moot for grading most of this corpus's adversarial cases:
+every adversarial case's base fault already has a genuine FAILED check independent of
+its injection payload, so has_failed_check routes them to review_required regardless of
+whether instruction_signal_detected fires. The value of scanning is not changing these
+cases' disposition; it is refusing to silently ship an attacker's text through Job C's
+draft into a human reviewer's queue undetected.
 """
 
 from __future__ import annotations
@@ -119,8 +139,8 @@ def _decide_base_disposition(inp: PolicyInput, matched_rules: list[str]) -> str:
     Plan section 21's "must request approval for anything sent to the customer" makes
     `auto` unreachable for any disposition that itself authorizes a customer-facing
     artifact -- there is no branch here where that requirement is satisfiable without
-    review, so none is written. This matches the corpus exactly: 0 of 51 labels use
-    expected_disposition "auto" (confirmed by inspection, 2026-08-17)."""
+    review, so none is written. This matches the corpus exactly: 0 of 56 labels use
+    expected_disposition "auto" (confirmed by inspection, 2026-08-23)."""
 
     if inp.verify_state == "parse_error":
         matched_rules.append("artifact_did_not_parse")

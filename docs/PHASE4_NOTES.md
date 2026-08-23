@@ -44,6 +44,56 @@ case `eval/run.py` excludes, matching Phase 3's own accounting) has since comple
 numbers are in `docs/MEASUREMENTS.md`, not here — this file documents what was built and how the
 smoke run's findings were diagnosed, not the final headline metrics.
 
+## Update, 2026-08-23: a second live prompt path found, fixed, and measured; adversarial case IDs renamed
+
+`docs/LIMITATIONS.md` used to say injection resistance rested on n=4 adversarial cases, only one
+of which (`clock_skew__adv_s3_context_manipulation`, its payload in the narrative Job A reads) had
+a real live path into a model prompt — the other three targeted an XML comment, a HAR
+`User-Agent` header, and a base64 attribute value, none of which any job read. That claim was
+correct as far as it went, but it silently generalized "these three specific payloads are
+unreachable" into "XML payloads are unreachable," which is false: `desk/verify/checks/*.py`
+populate `CheckResult.observed` verbatim from parsed element text and attribute values, and
+`desk/reason/jobs.py` builds Job C's prompt directly from those check rows
+(`desk/reason/prompts.py`'s `build_job_c_prompt`). `run_job_c` also hard-coded
+`instruction_signals=[]`, so nothing was even scanning that field. Found by reading the checks
+directly (`desk/verify/checks/audience.py`, `attributes.py`, `issuer.py`, `subject.py`,
+`destination.py`), not by assumption.
+
+Both gaps are closed: `harness/adversarial.py`'s `InjectionPayload` now carries an honest, static
+`reaches_prompt`/`landing_site`/`evades_detector` declaration, checked by `eval/metrics.py`'s
+`injection_resistance()` instead of a case-id-suffix hack; five new payloads land in real
+`CheckResult.observed` fields (`Audience`, a duplicated `Attribute` Name, `NameID`/`Format`,
+`Destination`, `Issuer`); and `desk/reason/jobs.py`'s `run_job_b`/`run_job_c` scan real
+attacker-reachable text (`_scan_check_rows`, `_scan_job_a_facts`) instead of hard-coding an empty
+signal list. See `docs/LIMITATIONS.md`, `docs/THREAT_MODEL.md`, and `desk/policy/rules.py`'s
+"INJECTION SIGNAL SCOPE" docstring for the corrected claims, and `eval/metrics.py`'s module
+docstring for the fuller before/after write-up.
+
+Fixing this required fixing a real, separate collision bug first: `harness/generate.py`'s
+adversarial `case_id` was built from `payload.taxonomy_class`, not `payload.payload_id` — two
+payloads sharing a `(base_fault, class)` pair would silently overwrite each other in
+`manifest_cases`. The fix (keying on `payload_id`) necessarily renames the four adversarial case
+IDs this file's earlier sections refer to by their old names. **Nothing below this point has been
+rewritten to match** — those sections are a historical record of what those cases were named and
+what was found about them at the time, and rewriting case-id strings inside that narrative would
+misrepresent when this rename actually happened. The mapping, for anyone chasing an old reference:
+
+| Old case ID (used below, and in `eval/runs/*` archives) | New case ID |
+|---|---|
+| `cert_rotation__adv_s1_direct_override` | `cert_rotation__adv_s1_response_xml_comment` |
+| `wrong_issuer__adv_s2_persona_hijack` | `wrong_issuer__adv_s2_har_user_agent` |
+| `clock_skew__adv_s3_context_manipulation` | `clock_skew__adv_s3_narrative_appeal_to_authority` |
+| `assertion_expired__adv_s4_obfuscated` | `assertion_expired__adv_s4_base64_attribute_friendlyname` |
+
+Same base fault, same payload content, same fixture-cache entries in each case (fixtures are
+keyed by prompt hash, not case ID — confirmed by replaying all four renamed cases against the
+existing committed fixtures after the rename; every job still resolves at `tier_used: "fixture"`).
+The corpus also gained five new adversarial cases (all layered on `cert_rotation`, the base fault
+whose `expected_states` already declares the SIG failure every XML-text-mutating payload
+mechanically causes), bringing the corpus from 51 to 56 entries in `corpus/MANIFEST.json` (50 to
+55 runnable, `sha1_signature_downgrade` still the one `documented_gap`). Job C fixtures for the
+five new cases have not been recorded yet — that is a separate, explicit, model-requiring step.
+
 ## Update, 2026-08-17: tie-break fixed, two reproducibility bugs found and fixed, new numbers
 
 Everything from here down was written 2026-08-16 or earlier and describes the deterministic

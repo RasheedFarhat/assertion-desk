@@ -42,7 +42,17 @@ def policy_input_from_pipeline_result(
     has_failed_check/has_gap are read off job_c/job_b's mere presence rather than
     recomputed from result.run, for the identical reason eval/metrics.py's own comment
     gives: eval/run.py's (and desk/pipeline.py's) invocation gate for each job already
-    IS the real signal, with no need to re-derive it."""
+    IS the real signal, with no need to re-derive it.
+
+    instruction_signal_detected ORs together all three jobs' instruction_signals, not
+    just Job A's. desk/reason/jobs.py's run_job_b and run_job_c both scan real
+    attacker-reachable text (check-result observed fields for Job C; job_a_facts'
+    free-text fields for both) -- see their own docstrings and _scan_check_rows /
+    _scan_job_a_facts. Reading only job_a here would silently ignore two of the three
+    real signal sources."""
+    instruction_signal_detected = any(
+        bool(job.instruction_signals) for job in (result.job_a, result.job_b, result.job_c) if job is not None
+    )
     return PolicyInput(
         verify_state=result.verify_state,
         has_failed_check=result.job_c is not None,
@@ -50,7 +60,7 @@ def policy_input_from_pipeline_result(
         job_c_invoked=result.job_c is not None,
         grounding_accepted=result.grounding.accepted if result.grounding is not None else None,
         final_root_cause=result.final_root_cause,
-        instruction_signal_detected=bool(result.job_a.instruction_signals) if result.job_a is not None else False,
+        instruction_signal_detected=instruction_signal_detected,
         any_live_credential=any_live_credential,
     )
 

@@ -68,6 +68,17 @@ that list, and did not.
 
 ## 3. Injection attempt, resisted or rejected depending on the case
 
+**Update, 2026-08-23:** the four case IDs and the table below are exactly what the cited
+2026-08-17 run measured, and are left as historical fact. Since that run, these four cases were
+renamed (`cert_rotation__adv_s1_direct_override` → `cert_rotation__adv_s1_response_xml_comment`,
+`wrong_issuer__adv_s2_persona_hijack` → `wrong_issuer__adv_s2_har_user_agent`,
+`clock_skew__adv_s3_context_manipulation` → `clock_skew__adv_s3_narrative_appeal_to_authority`,
+`assertion_expired__adv_s4_obfuscated` → `assertion_expired__adv_s4_base64_attribute_friendlyname`
+— same payload content, same fixtures) and the corpus gained five more adversarial cases that
+exercise a second live prompt path this document's "only S3 reaches a model" framing did not yet
+know existed. See `docs/THREAT_MODEL.md` T2, `docs/CORPUS.md`'s adversarial-cases table, and
+`docs/PHASE4_NOTES.md`'s 2026-08-23 update for the corrected, current picture.
+
 **Cases:** the corpus's four labeled injection payloads, one per taxonomy class from
 [arXiv 2605.24421](https://arxiv.org/abs/2605.24421):
 
@@ -131,6 +142,7 @@ routes every customer-facing output through human approval regardless of which t
 It is not the 90-second recording plan section 13 and 32 call for. `make demo` already runs a
 CLI walkthrough covering demos 1-3 above (see `Makefile`'s own case list:
 `cert_expired`, `duplicate_role_attributes`, `withheld_clock`, `negative_control`,
-`cert_rotation__adv_s1_direct_override`); this document adds the fourth (`encrypted_assertion`
+`cert_rotation__adv_s1_response_xml_comment` — renamed 2026-08-23, see the note on demo 3
+above); this document adds the fourth (`encrypted_assertion`
 / `http_https_mismatch`) and the exact, checkable facts behind all four rather than a
 narrated screen recording. Recording remains an open item.
