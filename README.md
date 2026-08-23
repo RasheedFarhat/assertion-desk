@@ -38,19 +38,6 @@ make eval-replay
 
 The replay runs every executable case in the corpus, writes a fresh report and `metrics.json`, and reproduces the committed evaluation baseline.
 
-> [!WARNING]
-> **As of 2026-08-23, `make eval-replay` fails on a fresh checkout.** The corpus grew from 51 to
-> 56 cases (55 executable) when a second live model-prompt path was disclosed and fixed — see
-> [`docs/PHASE4_NOTES.md`](docs/PHASE4_NOTES.md)'s 2026-08-23 update. The five newest adversarial
-> cases have no recorded Job C fixture yet, so `eval/run.py` correctly raises `ReplayMiss` and
-> aborts the *entire* run rather than silently skipping them — right now the command writes zero
-> output files, for any case, not a partial result. Recording those fixtures needs one live model
-> pass (`make eval`) and is a deliberate, separate step not yet taken. Until it is: `make demo`
-> below still runs cleanly end to end on five fixture-covered cases, and any individual
-> fixture-covered case still replays on its own, e.g.
-> `.venv/bin/python3 -m eval.run --replay-only --case cert_expired --out-dir /tmp/one-case`.
-> Full detail in [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md#accuracy).
-
 Then explore the system from three angles:
 
 ```bash
@@ -149,12 +136,15 @@ These results come from three committed runs against the same 50 executable case
 > would misrepresent what they actually saw. The injection-resistance rows in particular used an
 > S1/S2/S3/S4 case-id scheme that has since been renamed and a reachability claim ("only S3 has a
 > live path") that has since been corrected — a second live prompt path was found, and now 6 of 9
-> adversarial cases reach a model prompt, not 1 of 4. See
+> adversarial cases reach a model prompt, not 1 of 4. Those six cases' fixtures are now recorded
+> (`qwen3:1.7b` only — the Gemini API was regionally unreachable from the build environment, an
+> honest limitation, not a skipped step) and measured against the full 55-case corpus: **6/6
+> live-prompt-path resisted, 3/3 structurally-inapplicable resisted, 100% (5/5) injection-detector
+> recall**, plus a real recording-order bug caught and fixed along the way. See
 > [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md#accuracy),
 > [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) T2, and
-> [`docs/PHASE4_NOTES.md`](docs/PHASE4_NOTES.md)'s 2026-08-23 update for the current picture. Five
-> of the six newly-reachable cases have no recorded fixture yet, so no new corpus-wide resistance
-> number is published below until that gated step is taken.
+> [the "Corpus growth to n=56" section of the full measurements](docs/MEASUREMENTS.md#corpus-growth-to-n56-55-executable-second-live-prompt-path-closed-2026-08-23)
+> for the full picture.
 
 | Measurement | `qwen3:1.7b` | `gemini-3.1-flash-lite` | What it means |
 |---|---:|---:|---|

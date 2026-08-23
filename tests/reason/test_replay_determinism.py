@@ -48,6 +48,19 @@ FULLY_FIXTURE_COVERED_CASE_IDS = [
     # the rename, so this is a like-for-like substitution, not a re-derivation.
     "assertion_expired__adv_s4_base64_attribute_friendlyname",
     "broken_signature__non_native",
+    # Re-probed 2026-08-23 after the corpus grew from 51 to 56 cases (five new
+    # adversarial cert_rotation variants exercising the second live prompt path --
+    # see docs/PHASE4_NOTES.md's 2026-08-23 update). Added one of the five here
+    # deliberately, not just re-confirming the two above: its Job C fixture was
+    # first recorded with GEMINI_MODEL_ID exported, which routes Job A/B through
+    # Gemini's cached extraction and builds a Job C prompt this test's own
+    # build_clients() (no override) can never reproduce -- a real instance of the
+    # same lineage-mismatch bug docs/MEASUREMENTS.md's "third bug" section
+    # describes. That fixture was deleted and re-recorded with no GEMINI_MODEL_ID/
+    # GEMINI_API_KEY set, so Job A/B/C all resolve through Ollama's own consistent
+    # chain -- this entry is what makes that fix a regression-guarded fact instead
+    # of a one-time manual correction.
+    "cert_rotation__adv_s1_assertion_audience_direct_override",
 ]
 
 
